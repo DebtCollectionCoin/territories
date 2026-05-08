@@ -2,7 +2,6 @@
 .gradle/
 build/
 **/build/
-!gradle/wrapper/gradle-wrapper.jar
 
 # Kotlin incremental compilation cache (can corrupt silently — never commit)
 **/.kotlin/
@@ -29,6 +28,7 @@ Thumbs.db
 *.class
 *.jar
 *.aar
+!gradle/wrapper/gradle-wrapper.jar
 
 # Node / npm (if any tooling is added later)
 node_modules/
