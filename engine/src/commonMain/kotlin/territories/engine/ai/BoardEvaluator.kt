@@ -26,14 +26,14 @@ class BoardEvaluator(private val scorer: ScoreCalculator) {
         val oppDepthSum: Int,
         val ownDepthSum: Int,
         val frontier: Int,
-        val engagement: Int,
+        val proximity: Int,
         val total: Int
     ) {
         fun summary(): String =
             "total=$total | scoreΔ=$realScore (×1000) " +
             "oTrap=$oppTrapped (×400) sTrap=$ownTrapped (×-380) " +
-            "oDepth=$oppDepthSum (×8) sDepth=$ownDepthSum (×-8) " +
-            "frontier=$frontier (×4) engage=$engagement (×6)"
+            "oDepth=$oppDepthSum (×6) sDepth=$ownDepthSum (×-6) " +
+            "frontier=$frontier (×8) prox=$proximity (×8)"
     }
 
     fun evaluate(state: GameState, player: Player): Int =
@@ -79,24 +79,29 @@ class BoardEvaluator(private val scorer: ScoreCalculator) {
             if (d >= 0) ownDepthSum += d
         }
 
-        // Engagement: own dots within Chebyshev distance ≤ 3 of an opponent dot.
-        // This counter-balances the perimeter-walking tendency by explicitly
-        // rewarding placements that press on the opponent's chains.
-        var engagement = 0
+        // Proximity: smooth, monotonic gradient that pulls placements toward
+        // opponent dots. For every own dot, contribute max(0, R - cheb) where
+        // cheb = Chebyshev distance to the nearest opponent dot. This is the
+        // key signal that prevents the AI from drifting toward empty edges
+        // when no wall is yet in contact with anything.
+        //   • adjacent to opponent (cheb=1) → +(R-1)
+        //   • cheb ≥ R → 0
+        // R=8 means contributions taper out across roughly half the board.
+        val proximityRadius = 8
+        var proximity = 0
         if (oppDots.isNotEmpty()) {
             for (c in ownDots) {
                 val nearest = oppDots.minOf { o ->
                     maxOf(kotlin.math.abs(o.col - c.col), kotlin.math.abs(o.row - c.row))
                 }
-                if (nearest <= 3) engagement++
+                proximity += maxOf(0, proximityRadius - nearest)
             }
         }
 
         // Frontier: own dots that (a) sit adjacent to an empty cell in the
         // opponent's escape region AND (b) are within Chebyshev 4 of an
-        // opponent dot. Without the proximity gate, edges of the board count
-        // as "frontier" even when the opponent is nowhere nearby — that was
-        // the source of the AI walking the perimeter around empty space.
+        // opponent dot. Counts dots that actively press on the opponent's
+        // living space.
         val oppEscape = HashSet<Coord>()
         for (col in 0 until board.cols) for (row in 0 until board.rows) {
             if (distOpp[col][row] >= 0) oppEscape.add(Coord(col, row))
@@ -120,10 +125,10 @@ class BoardEvaluator(private val scorer: ScoreCalculator) {
         val total = realScore     * 1000 +
                     oppTrapped    * 400 -
                     ownTrapped    * 380 +
-                    oppDepthSum   * 8 -
-                    ownDepthSum   * 8 +
-                    frontier      * 4 +
-                    engagement    * 6
+                    oppDepthSum   * 6 -
+                    ownDepthSum   * 6 +
+                    frontier      * 8 +
+                    proximity     * 8
 
         return Breakdown(
             realScore = realScore,
@@ -132,7 +137,7 @@ class BoardEvaluator(private val scorer: ScoreCalculator) {
             oppDepthSum = oppDepthSum,
             ownDepthSum = ownDepthSum,
             frontier = frontier,
-            engagement = engagement,
+            proximity = proximity,
             total = total
         )
     }

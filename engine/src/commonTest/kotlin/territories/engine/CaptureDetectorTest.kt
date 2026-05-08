@@ -190,4 +190,74 @@ class CaptureDetectorTest {
         assertEquals(1, captured.size, "B should re-capture the region")
         assertTrue(Coord(4, 4) in captured[0].capturedDots)
     }
+
+    @Test
+    fun capturedOpponentDotIsAbsorbedAndCannotWallForOriginalOwner() {
+        // House rule: when a dot is inside the enemy's territory, it is
+        // absorbed and no longer counts as wall material for its original
+        // owner. This test sets up a "dead A" dot at (3,3) and tries to use
+        // it as part of an A wall — capture must FAIL because A's flood-fill
+        // leaks straight through the dead A.
+        val board = Board.empty(9, 9)
+        var b = board
+
+        // Simulate the dead-A state: dot=A, territory=B at (3,3).
+        b = b.withTerritory(setOf(Coord(3, 3)), Player.B)
+        b = b.withDot(Coord(3, 3), Player.A)
+
+        // Try to enclose a B dot at (3,4) with A walls. The "top" of the
+        // ring uses the dead A at (3,3) — if the dead A blocked A's
+        // flood-fill (old behaviour), capture would succeed. With absorption
+        // it does not, so capture must fail.
+        //
+        //   . . . . .
+        //   . a A a .   row 3:  (2,3)A  (3,3)deadA  (4,3)A
+        //   . a B a .   row 4:  (2,4)A  (3,4)B      (4,4)A
+        //   . a a a .   row 5:  (2,5)A  (3,5)A      (4,5)A
+        b = b.withDot(Coord(2, 3), Player.A)
+        b = b.withDot(Coord(4, 3), Player.A)
+        b = b.withDot(Coord(2, 4), Player.A)
+        b = b.withDot(Coord(4, 4), Player.A)
+        b = b.withDot(Coord(2, 5), Player.A)
+        b = b.withDot(Coord(3, 5), Player.A)
+        b = b.withDot(Coord(4, 5), Player.A)
+        b = b.withDot(Coord(3, 4), Player.B)
+
+        val captured = detector.detectCaptures(Coord(4, 5), Player.A, b)
+        assertEquals(0, captured.size,
+            "Capture must fail: the dead A at (3,3) is absorbed (territory=B) " +
+            "and cannot serve as wall material for A's flood-fill")
+    }
+
+    @Test
+    fun capturerWallsIncludeAbsorbedDots() {
+        // Counterpart to the above: from B's perspective, the cell at (3,3)
+        // (territory=B with a dead A dot) IS B's wall material. Verify B's
+        // flood-fill is blocked there.
+        val board = Board.empty(9, 9)
+        var b = board
+
+        b = b.withTerritory(setOf(Coord(3, 3)), Player.B)
+        b = b.withDot(Coord(3, 3), Player.A)  // dead A inside B territory
+
+        // Place a fresh A dot at (3,2) and surround it with B walls,
+        // borrowing (3,3) as the south wall:
+        //   . b b b .    row 1
+        //   . b A b .    row 2:  (3,2)A is the target
+        //   . b A b .    row 3:  (3,3) dead A serves as south wall (territory=B)
+        b = b.withDot(Coord(2, 1), Player.B)
+        b = b.withDot(Coord(3, 1), Player.B)
+        b = b.withDot(Coord(4, 1), Player.B)
+        b = b.withDot(Coord(2, 2), Player.B)
+        b = b.withDot(Coord(4, 2), Player.B)
+        b = b.withDot(Coord(2, 3), Player.B)
+        b = b.withDot(Coord(4, 3), Player.B)
+        b = b.withDot(Coord(3, 2), Player.A)
+
+        val captured = detector.detectCaptures(Coord(4, 3), Player.B, b)
+        assertEquals(1, captured.size,
+            "B must capture A at (3,2): the dead A at (3,3) belongs to " +
+            "B's territory and acts as a south wall")
+        assertTrue(Coord(3, 2) in captured[0].capturedDots)
+    }
 }
