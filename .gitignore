@@ -1,0 +1,34 @@
+# Gradle
+.gradle/
+build/
+**/build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Kotlin incremental compilation cache (can corrupt silently — never commit)
+**/.kotlin/
+
+# Kotlin/JS store (generated, reproducible)
+kotlin-js-store/
+
+# IntelliJ / Android Studio
+.idea/
+*.iml
+*.ipr
+*.iws
+local.properties
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Android keystore (NEVER commit signing keys)
+*.jks
+*.keystore
+
+# Compiled outputs
+*.class
+*.jar
+*.aar
+
+# Node / npm (if any tooling is added later)
+node_modules/

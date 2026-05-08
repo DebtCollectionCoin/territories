@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <title>Territories</title>
+    <meta name="description" content="Territories — a strategy game of encirclement">
+    <meta name="theme-color" content="#0f1116">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="icon" href="icon-192.png" type="image/png">
+</head>
+<body>
+    <div id="app">
+        <header id="hud">
+            <div class="score-panel player-a">
+                <span class="label">Blue</span>
+                <span class="value" id="score-a-val">0</span>
+            </div>
+            <div id="turn-label">—</div>
+            <div class="score-panel player-b">
+                <span class="label">Red</span>
+                <span class="value" id="score-b-val">0</span>
+            </div>
+        </header>
+        <main>
+            <canvas id="board" aria-label="Game board"></canvas>
+        </main>
+        <footer id="controls">
+            <button id="btn-undo" aria-label="Undo last move" title="Undo (Ctrl+Z)">
+                <span class="icon">↩</span><span class="text">Undo</span>
+            </button>
+            <button id="btn-surrender" aria-label="Surrender" title="Surrender">
+                <span class="icon">✖</span><span class="text">Surrender</span>
+            </button>
+            <button id="btn-menu" aria-label="Open menu" title="Menu (Esc)">
+                <span class="icon">☰</span><span class="text">Menu</span>
+            </button>
+        </footer>
+    </div>
+
+    <!-- Home overlay (initial screen) -->
+    <div id="overlay-home" class="overlay" role="dialog" aria-labelledby="home-title">
+        <div class="dialog dialog-home">
+            <div class="brand">
+                <div class="brand-mark">
+                    <span class="dot dot-a"></span>
+                    <span class="dot dot-a"></span>
+                    <span class="dot dot-b"></span>
+                    <span class="dot dot-a"></span>
+                    <span class="dot dot-b"></span>
+                    <span class="dot dot-b"></span>
+                </div>
+                <h1 id="home-title">Territories</h1>
+                <p class="tagline">A strategy game of encirclement</p>
+            </div>
+            <div class="actions">
+                <button id="btn-resume" class="primary" style="display:none">Resume Game</button>
+                <button id="btn-new" class="primary">New Game</button>
+                <button id="btn-settings" class="secondary">Settings</button>
+                <button id="btn-about" class="secondary">How to Play</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Setup overlay -->
+    <div id="overlay-setup" class="overlay" style="display:none" role="dialog" aria-labelledby="setup-title">
+        <div class="dialog dialog-wide">
+            <div class="dialog-header">
+                <button class="back-btn" id="btn-setup-back" aria-label="Back">←</button>
+                <h2 id="setup-title">New Game</h2>
+                <span class="header-spacer"></span>
+            </div>
+            <div class="dialog-body">
+                <section class="choice-section">
+                    <h3>Board Size</h3>
+                    <div class="choice-grid" data-group="size">
+                        <button class="choice" data-value="small"><b>Small</b><span>21×16</span></button>
+                        <button class="choice selected" data-value="medium"><b>Medium</b><span>31×21</span></button>
+                        <button class="choice" data-value="large"><b>Large</b><span>61×41</span></button>
+                    </div>
+                </section>
+                <section class="choice-section">
+                    <h3>Scoring</h3>
+                    <div class="choice-grid two-col" data-group="scoring">
+                        <button class="choice selected" data-value="territory"><b>Territory Area</b><span>Largest enclosed region wins</span></button>
+                        <button class="choice" data-value="captured"><b>Captured Dots</b><span>Most opponent dots captured wins</span></button>
+                    </div>
+                </section>
+                <section class="choice-section">
+                    <h3>Opponent</h3>
+                    <div class="choice-grid" data-group="opponent">
+                        <button class="choice" data-value="human"><b>Human</b><span>Pass &amp; play</span></button>
+                        <button class="choice" data-value="easy"><b>AI Easy</b><span>Random</span></button>
+                        <button class="choice selected" data-value="medium"><b>AI Med</b><span>1 ahead</span></button>
+                        <button class="choice" data-value="hard"><b>AI Hard</b><span>Several ahead</span></button>
+                    </div>
+                </section>
+                <section class="choice-section">
+                    <h3>First Player</h3>
+                    <div class="choice-grid" data-group="first">
+                        <button class="choice selected" data-value="a"><b>Blue</b><span>Starts</span></button>
+                        <button class="choice" data-value="b"><b>Red</b><span>Starts</span></button>
+                        <button class="choice" data-value="random"><b>Random</b><span>Coin flip</span></button>
+                    </div>
+                </section>
+            </div>
+            <button id="btn-start" class="primary">Start Game</button>
+        </div>
+    </div>
+
+    <!-- Result overlay -->
+    <div id="overlay-result" class="overlay" style="display:none" role="dialog" aria-labelledby="result-title">
+        <div class="confetti-layer" id="confetti"></div>
+        <div class="dialog">
+            <p class="result-eyebrow">Game Over</p>
+            <h2 id="result-title" class="result-winner">—</h2>
+            <div class="result-scores">
+                <div class="score-panel player-a"><span class="label">Blue</span><span class="value" id="result-score-a">0</span></div>
+                <div class="result-vs">vs</div>
+                <div class="score-panel player-b"><span class="label">Red</span><span class="value" id="result-score-b">0</span></div>
+            </div>
+            <p class="result-meta" id="result-meta">0 moves</p>
+            <div class="actions">
+                <button id="btn-play-again" class="primary">Play Again</button>
+                <button id="btn-new-game" class="secondary">New Game</button>
+                <button id="btn-result-home" class="secondary">Home</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings overlay -->
+    <div id="overlay-settings" class="overlay" style="display:none" role="dialog" aria-labelledby="settings-title">
+        <div class="dialog">
+            <div class="dialog-header">
+                <button class="back-btn" id="btn-settings-back" aria-label="Back">←</button>
+                <h2 id="settings-title">Settings</h2>
+                <span class="header-spacer"></span>
+            </div>
+            <label class="toggle-row">
+                <span>Sound effects</span>
+                <input type="checkbox" id="toggle-sound" checked>
+            </label>
+            <label class="toggle-row">
+                <span>Show last-move pulse</span>
+                <input type="checkbox" id="toggle-pulse" checked>
+            </label>
+            <button id="btn-clear-saved" class="secondary">Clear Saved Game</button>
+        </div>
+    </div>
+
+    <!-- About / How to play -->
+    <div id="overlay-about" class="overlay" style="display:none" role="dialog" aria-labelledby="about-title">
+        <div class="dialog">
+            <div class="dialog-header">
+                <button class="back-btn" id="btn-about-back" aria-label="Back">←</button>
+                <h2 id="about-title">How to Play</h2>
+                <span class="header-spacer"></span>
+            </div>
+            <div class="about-body">
+                <p>Players take turns placing dots on grid intersections.</p>
+                <p>Surround an opponent's dots with a closed loop of your own to capture them and claim the enclosed territory.</p>
+                <p>The game ends when a player surrenders or no further useful moves remain. The winner is determined by the chosen scoring rule.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- In-game menu overlay -->
+    <div id="overlay-menu" class="overlay" style="display:none" role="dialog">
+        <div class="dialog dialog-narrow">
+            <h2>Menu</h2>
+            <button id="btn-menu-resume" class="primary">Resume</button>
+            <button id="btn-menu-settings" class="secondary">Settings</button>
+            <button id="btn-menu-newgame" class="secondary">New Game</button>
+            <button id="btn-menu-home" class="secondary">Quit to Home</button>
+        </div>
+    </div>
+
+    <!-- AI thinking pill -->
+    <div id="overlay-ai" class="ai-pill" style="display:none">
+        <span class="ai-spinner"></span><span>AI thinking…</span>
+    </div>
+
+    <script src="territories.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').catch(() => {});
+            });
+        }
+        // Prevent iOS pinch zoom on game board
+        document.addEventListener('gesturestart', e => e.preventDefault());
+    </script>
+</body>
+</html>
