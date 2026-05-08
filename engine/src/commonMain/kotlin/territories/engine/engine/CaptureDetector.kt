@@ -41,7 +41,13 @@ class CaptureDetector {
 
     private fun isPlayerMaterial(board: Board, coord: Coord, player: Player): Boolean {
         val cell = board.get(coord)
-        return cell.dot == player || cell.territory == player
+        // House rule: once a cell is inside a territory, only the territory owner's
+        // material lives there. Captured opponent dots are absorbed — they no longer
+        // block their original owner. This makes captured pieces "flip" to the
+        // capturer for game-mechanics purposes (the rendered colour is preserved
+        // as a visual record of the capture).
+        return if (cell.territory != Player.NONE) cell.territory == player
+        else cell.dot == player
     }
 
     /**

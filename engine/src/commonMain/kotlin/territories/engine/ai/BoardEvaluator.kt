@@ -26,14 +26,14 @@ class BoardEvaluator(private val scorer: ScoreCalculator) {
         val oppDepthSum: Int,
         val ownDepthSum: Int,
         val frontier: Int,
-        val borderDots: Int,
+        val engagement: Int,
         val total: Int
     ) {
         fun summary(): String =
             "total=$total | scoreΔ=$realScore (×1000) " +
             "oTrap=$oppTrapped (×400) sTrap=$ownTrapped (×-380) " +
-            "oDepth=$oppDepthSum (×6) sDepth=$ownDepthSum (×-6) " +
-            "frontier=$frontier (×3) border=$borderDots (×4)"
+            "oDepth=$oppDepthSum (×8) sDepth=$ownDepthSum (×-8) " +
+            "frontier=$frontier (×4) engage=$engagement (×6)"
     }
 
     fun evaluate(state: GameState, player: Player): Int =
@@ -52,8 +52,15 @@ class BoardEvaluator(private val scorer: ScoreCalculator) {
         val distOpp = bfsDistanceFromBorder(board, blocker = player)
         val distOwn = bfsDistanceFromBorder(board, blocker = opponent)
 
-        val oppDots = board.cellsOf(opponent)
-        val ownDots = board.cellsOf(player)
+        // A dot only counts as "live" for the player whose colour it bears
+        // AND whose territory it is NOT trapped inside. Captured dots are
+        // absorbed and don't contribute to either side's calculations.
+        val oppDots = board.cellsOf(opponent).filter {
+            board.get(it).territory != player
+        }
+        val ownDots = board.cellsOf(player).filter {
+            board.get(it).territory != opponent
+        }
 
         // Trapped = unreachable from border (distance == -1).
         val oppTrapped = oppDots.count { (distOpp[it.col][it.row]) < 0 }
@@ -72,32 +79,51 @@ class BoardEvaluator(private val scorer: ScoreCalculator) {
             if (d >= 0) ownDepthSum += d
         }
 
-        // Frontier: own dots adjacent (8-way) to at least one EMPTY cell in
-        // the opponent's escape region. These are dots that actively press
-        // against the opponent's living space. Interior dots score 0.
+        // Engagement: own dots within Chebyshev distance ≤ 3 of an opponent dot.
+        // This counter-balances the perimeter-walking tendency by explicitly
+        // rewarding placements that press on the opponent's chains.
+        var engagement = 0
+        if (oppDots.isNotEmpty()) {
+            for (c in ownDots) {
+                val nearest = oppDots.minOf { o ->
+                    maxOf(kotlin.math.abs(o.col - c.col), kotlin.math.abs(o.row - c.row))
+                }
+                if (nearest <= 3) engagement++
+            }
+        }
+
+        // Frontier: own dots that (a) sit adjacent to an empty cell in the
+        // opponent's escape region AND (b) are within Chebyshev 4 of an
+        // opponent dot. Without the proximity gate, edges of the board count
+        // as "frontier" even when the opponent is nowhere nearby — that was
+        // the source of the AI walking the perimeter around empty space.
         val oppEscape = HashSet<Coord>()
         for (col in 0 until board.cols) for (row in 0 until board.rows) {
             if (distOpp[col][row] >= 0) oppEscape.add(Coord(col, row))
         }
         var frontier = 0
-        for (c in ownDots) {
-            val touchesLiveOpp = c.neighbors8().any { n ->
-                board.isOnBoard(n) &&
-                board.get(n).dot == Player.NONE &&
-                n in oppEscape
+        if (oppDots.isNotEmpty()) {
+            for (c in ownDots) {
+                val nearest = oppDots.minOf { o ->
+                    maxOf(kotlin.math.abs(o.col - c.col), kotlin.math.abs(o.row - c.row))
+                }
+                if (nearest > 4) continue
+                val touchesLiveOpp = c.neighbors8().any { n ->
+                    board.isOnBoard(n) &&
+                    board.get(n).dot == Player.NONE &&
+                    n in oppEscape
+                }
+                if (touchesLiveOpp) frontier++
             }
-            if (touchesLiveOpp) frontier++
         }
-
-        val borderDots = ownDots.count { board.isBorder(it) }
 
         val total = realScore     * 1000 +
                     oppTrapped    * 400 -
                     ownTrapped    * 380 +
-                    oppDepthSum   * 6 -
-                    ownDepthSum   * 6 +
-                    frontier      * 3 +
-                    borderDots    * 4
+                    oppDepthSum   * 8 -
+                    ownDepthSum   * 8 +
+                    frontier      * 4 +
+                    engagement    * 6
 
         return Breakdown(
             realScore = realScore,
@@ -106,7 +132,7 @@ class BoardEvaluator(private val scorer: ScoreCalculator) {
             oppDepthSum = oppDepthSum,
             ownDepthSum = ownDepthSum,
             frontier = frontier,
-            borderDots = borderDots,
+            engagement = engagement,
             total = total
         )
     }
@@ -123,7 +149,11 @@ class BoardEvaluator(private val scorer: ScoreCalculator) {
 
         fun isImpassable(c: Coord): Boolean {
             val cell = board.get(c)
-            return cell.dot == blocker || cell.territory == blocker
+            // Match CaptureDetector: once a cell is inside someone's territory,
+            // only the territory owner's material lives there. A captured
+            // opponent dot does not block its original owner anymore.
+            return if (cell.territory != Player.NONE) cell.territory == blocker
+            else cell.dot == blocker
         }
 
         // Seed with passable border cells at distance 0.
