@@ -56,4 +56,6 @@ tasks.register<JavaExec>("runBenchmark") {
     // Args forwarded from -Pbench.args="..."
     val benchArgs = (project.findProperty("bench.args") as String?)?.split(" ") ?: emptyList()
     args = benchArgs
+    // Mode: "medium" (default, fast Medium-vs-Medium sweep) or "hard" (Hard-AI matchups).
+    (project.findProperty("bench.mode") as String?)?.let { systemProperty("bench.mode", it) }
 }

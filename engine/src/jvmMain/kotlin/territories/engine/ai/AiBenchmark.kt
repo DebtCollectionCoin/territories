@@ -181,6 +181,74 @@ fun main(argv: Array<String>) {
     println("Bench: games=${args.games} moves=${args.maxMoves} board=${args.cols}x${args.rows} " +
             "depth=${args.hardDepth} timeMs=${args.hardTimeMs} seed=${args.seed}")
 
+    when (System.getProperty("bench.mode") ?: "medium") {
+        "hard" -> runHardSweep(args)
+        else   -> runMediumSweep(args)
+    }
+}
+
+/**
+ * Hard-AI tuning sweep. Hard search is much slower than Medium, so we
+ * use fewer games and shorter time budgets per match. Goal: confirm the
+ * new heuristic still wins at depth >= 3 (where minimax can actually see
+ * the multi-ply consequences of pressure terms), and find a depth/time
+ * sweet spot for the shipped defaults.
+ */
+private fun runHardSweep(args: BenchArgs) {
+    val baseline = BoardEvaluator.Weights()
+    val oldHeuristic = baseline.copy(frontier = 8, proximity = 8, componentPressure = 0)
+
+    val matchups = listOf(
+        // Heuristic check: new defaults vs old heuristic at the shipped depth.
+        Triple("hard_new_vs_old(A)",
+            hardWith(baseline,    args.hardDepth, args.hardTimeMs),
+            hardWith(oldHeuristic, args.hardDepth, args.hardTimeMs)),
+        Triple("hard_new_vs_old(B)",
+            hardWith(oldHeuristic, args.hardDepth, args.hardTimeMs),
+            hardWith(baseline,    args.hardDepth, args.hardTimeMs)),
+        // Depth/budget sweep: does deeper search actually help?
+        Triple("hard_d4_vs_d3(A)",
+            hardWith(baseline, 4, args.hardTimeMs),
+            hardWith(baseline, 3, args.hardTimeMs)),
+        Triple("hard_d4_vs_d3(B)",
+            hardWith(baseline, 3, args.hardTimeMs),
+            hardWith(baseline, 4, args.hardTimeMs)),
+        // Hard vs Medium sanity (Hard should clearly win).
+        Triple("hard_vs_medium(A)",
+            hardWith(baseline, args.hardDepth, args.hardTimeMs),
+            mediumWith(baseline)),
+        Triple("hard_vs_medium(B)",
+            mediumWith(baseline),
+            hardWith(baseline, args.hardDepth, args.hardTimeMs))
+    )
+
+    val results = matchups.map { (name, a, b) -> runMatch(name, args, a, b) }
+    println()
+    println("─── Hard-AI results ───")
+    for (r in results) println(r.pretty())
+
+    println()
+    println("─── Hard-AI net captures (variant as A then as B vs other) ───")
+    val pairs = listOf(
+        "hard_new_vs_old" to listOf("hard_new_vs_old(A)", "hard_new_vs_old(B)"),
+        "hard_d4_vs_d3"   to listOf("hard_d4_vs_d3(A)",   "hard_d4_vs_d3(B)"),
+        "hard_vs_medium"  to listOf("hard_vs_medium(A)",  "hard_vs_medium(B)")
+    )
+    for ((label, names) in pairs) {
+        val asA = results.first { it.name == names[0] }
+        val asB = results.first { it.name == names[1] }
+        // "for" = the named variant: it plays as A in the first match and as B in the second.
+        val capsFor = asA.avgCapsA + asB.avgCapsB
+        val capsAgainst = asA.avgCapsB + asB.avgCapsA
+        val winsFor = asA.winsA + asB.winsB
+        val winsAgainst = asA.winsB + asB.winsA
+        println("%-22s  capsFor=%4.1f capsAgainst=%4.1f  net=%+5.1f  wins=%d/%d".format(
+            label, capsFor, capsAgainst, capsFor - capsAgainst, winsFor, winsAgainst
+        ))
+    }
+}
+
+private fun runMediumSweep(args: BenchArgs) {
     val baseline = BoardEvaluator.Weights()  // current defaults
     // Sanity check: head-to-head vs the original "old" heuristic (high
     // proximity & frontier). If that still loses, the new defaults are
