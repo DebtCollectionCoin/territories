@@ -8,10 +8,11 @@ import territories.engine.model.*
 class HardAiPlayer(
     private val engine: GameEngine,
     private val maxDepth: Int = 4,
-    private val maxTimeMs: Long = 2000L
+    private val maxTimeMs: Long = 2000L,
+    weights: BoardEvaluator.Weights = BoardEvaluator.Weights.DEFAULT
 ) : AiPlayer {
     private val checker = LegalMoveChecker()
-    private val evaluator = BoardEvaluator(ScoreCalculator())
+    private val evaluator = BoardEvaluator(ScoreCalculator(), weights)
 
     override suspend fun selectMove(state: GameState): Coord {
         val legal = checker.allLegalMoves(state)

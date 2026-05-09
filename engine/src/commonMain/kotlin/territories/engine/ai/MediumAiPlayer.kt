@@ -7,9 +7,12 @@ import territories.engine.model.Coord
 import territories.engine.model.GameState
 import territories.engine.model.Player
 
-class MediumAiPlayer(private val engine: GameEngine) : AiPlayer {
+class MediumAiPlayer(
+    private val engine: GameEngine,
+    weights: BoardEvaluator.Weights = BoardEvaluator.Weights.DEFAULT
+) : AiPlayer {
     private val checker = LegalMoveChecker()
-    private val evaluator = BoardEvaluator(ScoreCalculator())
+    private val evaluator = BoardEvaluator(ScoreCalculator(), weights)
 
     override suspend fun selectMove(state: GameState): Coord {
         val legal = checker.allLegalMoves(state)

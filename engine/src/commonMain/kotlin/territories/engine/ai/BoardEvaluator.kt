@@ -17,7 +17,39 @@ import territories.engine.model.*
  * discourages interior clustering (an interior dot doesn't change anyone's
  * BFS distance, so it adds zero pressure).
  */
-class BoardEvaluator(private val scorer: ScoreCalculator) {
+class BoardEvaluator(
+    private val scorer: ScoreCalculator,
+    private val weights: Weights = Weights.DEFAULT
+) {
+
+    /**
+     * Tunable weight set. All heuristic terms multiply through here so
+     * benchmarks can sweep weights without touching the evaluator body.
+     */
+    data class Weights(
+        val realScore: Int        = 1000,
+        val oppTrapped: Int       = 400,
+        val ownTrapped: Int       = 380,
+        val oppDepthSum: Int      = 6,
+        val ownDepthSum: Int      = 6,
+        val frontier: Int         = 0,
+        val proximity: Int        = 0,
+        val oppEscapeArea: Int    = 4,
+        val ownEscapeArea: Int    = 1,
+        /** Nonlinear "the noose tightens" term: max(0, K-area)^2 multiplied
+         *  by this weight, taken on opponent escape minus own escape.
+         *  Stays at 0 in the wide-open midgame and only kicks in once a
+         *  region is genuinely close to capture. */
+        val pressureGain: Int     = 1,
+        val pressureK: Int        = 30,
+        /** Per-component pressure: encourages tightening any small
+         *  opponent component instead of building a single mega-wall. */
+        val componentPressure: Int = 6
+    ) {
+        companion object {
+            val DEFAULT = Weights()
+        }
+    }
 
     data class Breakdown(
         val realScore: Int,
@@ -29,14 +61,17 @@ class BoardEvaluator(private val scorer: ScoreCalculator) {
         val proximity: Int,
         val oppEscapeArea: Int,
         val ownEscapeArea: Int,
+        val nonlinearPressure: Int,
+        val componentPressure: Int,
         val total: Int
     ) {
         fun summary(): String =
-            "total=$total | scoreΔ=$realScore (×1000) " +
-            "oTrap=$oppTrapped (×400) sTrap=$ownTrapped (×-380) " +
-            "oDepth=$oppDepthSum (×6) sDepth=$ownDepthSum (×-6) " +
-            "frontier=$frontier (×8) prox=$proximity (×8) " +
-            "oEscape=$oppEscapeArea (×-4) sEscape=$ownEscapeArea (×1)"
+            "total=$total | scoreΔ=$realScore " +
+            "oTrap=$oppTrapped sTrap=$ownTrapped " +
+            "oDepth=$oppDepthSum sDepth=$ownDepthSum " +
+            "frontier=$frontier prox=$proximity " +
+            "oEscape=$oppEscapeArea sEscape=$ownEscapeArea " +
+            "nlP=$nonlinearPressure cP=$componentPressure"
     }
 
     fun evaluate(state: GameState, player: Player): Int =
@@ -138,15 +173,33 @@ class BoardEvaluator(private val scorer: ScoreCalculator) {
             if (distOwn[col][row] >= 0) ownEscapeArea++
         }
 
-        val total = realScore     * 1000 +
-                    oppTrapped    * 400 -
-                    ownTrapped    * 380 +
-                    oppDepthSum   * 6 -
-                    ownDepthSum   * 6 +
-                    frontier      * 8 +
-                    proximity     * 8 -
-                    oppEscapeArea * 4 +
-                    ownEscapeArea * 1
+        // Nonlinear "noose" term — only fires once a region is close to
+        // capture. (K - area)^2 grows quadratically, so the AI prioritises
+        // closing a half-shut region over starting a new one elsewhere.
+        val K = weights.pressureK
+        val nonlinearPressure =
+            maxOf(0, K - oppEscapeArea) * maxOf(0, K - oppEscapeArea) -
+            maxOf(0, K - ownEscapeArea) * maxOf(0, K - ownEscapeArea)
+
+        // Per-component pressure: identify each connected opponent group
+        // (8-conn, only counting *live* opponent dots — those still reachable
+        // from the border via empty cells / their own colour) and reward
+        // tightening the noose around the smallest. This is the user's
+        // "surround opponent dots as they come" rule made explicit: we
+        // care about the most-threatened group, not the global wall length.
+        val componentPressure = computeComponentPressure(board, opponent, player, oppDots)
+
+        val total = realScore         * weights.realScore +
+                    oppTrapped        * weights.oppTrapped -
+                    ownTrapped        * weights.ownTrapped +
+                    oppDepthSum       * weights.oppDepthSum -
+                    ownDepthSum       * weights.ownDepthSum +
+                    frontier          * weights.frontier +
+                    proximity         * weights.proximity -
+                    oppEscapeArea     * weights.oppEscapeArea +
+                    ownEscapeArea     * weights.ownEscapeArea +
+                    nonlinearPressure * weights.pressureGain +
+                    componentPressure * weights.componentPressure
 
         return Breakdown(
             realScore = realScore,
@@ -158,8 +211,91 @@ class BoardEvaluator(private val scorer: ScoreCalculator) {
             proximity = proximity,
             oppEscapeArea = oppEscapeArea,
             ownEscapeArea = ownEscapeArea,
+            nonlinearPressure = nonlinearPressure,
+            componentPressure = componentPressure,
             total = total
         )
+    }
+
+    /**
+     * For each connected component of opponent dots (8-connected, live
+     * dots only), compute its "escape budget" — the number of empty
+     * cells in its border-reachable region — and turn it into a bonus
+     * that grows quadratically as the budget shrinks.
+     *
+     * `distOpp` was produced by [bfsDistanceFromBorder] with our own
+     * dots/territory acting as walls, so reachable cells share the same
+     * connected region in that obstacle field. Two opponent groups that
+     * sit in the same region naturally share their escape budget; that
+     * is correct, since either group escaping leaves both alive.
+     */
+    private fun computeComponentPressure(
+        board: Board,
+        opponent: Player,
+        ourPlayer: Player,
+        oppDots: List<Coord>
+    ): Int {
+        if (oppDots.isEmpty()) return 0
+
+        // A cell is passable for the opponent iff our wall does not block it.
+        fun passable(c: Coord): Boolean {
+            val cell = board.get(c)
+            // Once a cell is inside someone's territory, only that owner's
+            // material lives there. Our territory is a hard wall for opp.
+            return if (cell.territory != Player.NONE) cell.territory != ourPlayer
+            else cell.dot != ourPlayer
+        }
+
+        // Flood-fill regions of cells passable for opp; record the
+        // empty-cell count (escape budget) and which region every cell
+        // belongs to.
+        val regionId = Array(board.cols) { IntArray(board.rows) { -1 } }
+        val regionEscape = mutableListOf<Int>()
+        var nextId = 0
+        for (sc in 0 until board.cols) for (sr in 0 until board.rows) {
+            val start = Coord(sc, sr)
+            if (regionId[sc][sr] != -1) continue
+            if (!passable(start)) continue
+            val queue = ArrayDeque<Coord>()
+            queue.addLast(start)
+            regionId[sc][sr] = nextId
+            var escape = 0
+            while (queue.isNotEmpty()) {
+                val cur = queue.removeFirst()
+                val curCell = board.get(cur)
+                if (curCell.dot == Player.NONE && curCell.territory == Player.NONE) {
+                    escape++
+                }
+                for (n in cur.neighbors4()) {
+                    if (!board.isOnBoard(n)) continue
+                    if (regionId[n.col][n.row] != -1) continue
+                    if (!passable(n)) continue
+                    regionId[n.col][n.row] = nextId
+                    queue.addLast(n)
+                }
+            }
+            regionEscape.add(escape)
+            nextId++
+        }
+
+        // Tally: for each region, count opp dots in it; reward shrinkage.
+        val groupSize = IntArray(nextId)
+        for (d in oppDots) {
+            val id = regionId[d.col][d.row]
+            if (id >= 0) groupSize[id]++
+        }
+
+        var pressure = 0
+        val K = weights.pressureK
+        for (i in 0 until nextId) {
+            val gSize = groupSize[i]
+            if (gSize == 0) continue
+            val deficit = maxOf(0, K - regionEscape[i])
+            // Multiply by group size — tightening a region with 5 opp dots
+            // matters more than tightening one with 1 dot.
+            pressure += deficit * deficit * gSize
+        }
+        return pressure
     }
 
     /**

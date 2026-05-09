@@ -45,3 +45,15 @@ tasks.register<JavaExec>("runSimulation") {
                 kotlin.jvm().compilations["main"].runtimeDependencyFiles
     mainClass.set("territories.engine.ai.SimulationKt")
 }
+
+tasks.register<JavaExec>("runBenchmark") {
+    group = "verification"
+    description = "Runs N AI vs AI games, summarises captures / score / draws"
+    dependsOn("jvmMainClasses")
+    classpath = kotlin.jvm().compilations["main"].output.allOutputs +
+                kotlin.jvm().compilations["main"].runtimeDependencyFiles
+    mainClass.set("territories.engine.ai.AiBenchmarkKt")
+    // Args forwarded from -Pbench.args="..."
+    val benchArgs = (project.findProperty("bench.args") as String?)?.split(" ") ?: emptyList()
+    args = benchArgs
+}
