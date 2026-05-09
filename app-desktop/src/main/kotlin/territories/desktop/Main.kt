@@ -29,6 +29,10 @@ fun main() = application {
                     return@event true
                 }
             }
+            if (e.isCtrlPressed && e.key == Key.N) {
+                viewModel.openSetup()
+                return@event true
+            }
             false
         }
     ) {

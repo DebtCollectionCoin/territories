@@ -34,8 +34,8 @@ import territories.engine.model.Player
 fun GameWindow(viewModel: GameViewModel) {
     val gameState    by viewModel.gameState.collectAsState()
     val isAiThinking by viewModel.isAiThinking.collectAsState()
+    val showSetup    by viewModel.showSetup.collectAsState()
 
-    var showSetup  by remember { mutableStateOf(true) }
     var showResult by remember { mutableStateOf(false) }
 
     LaunchedEffect(gameState?.isGameOver) {
@@ -53,7 +53,7 @@ fun GameWindow(viewModel: GameViewModel) {
                     canUndo      = viewModel.canUndo(),
                     onUndo       = { viewModel.undo() },
                     onSurrender  = { viewModel.surrender() },
-                    onMenu       = { showSetup = true }
+                    onMenu       = { viewModel.openSetup() }
                 )
 
                 // ── Board area ────────────────────────────────────────
@@ -82,7 +82,7 @@ fun GameWindow(viewModel: GameViewModel) {
                     showResume = viewModel.hasSavedGame() ||
                                  (gameState != null && gameState?.isGameOver == false),
                     onStart    = { config, pBType ->
-                        showSetup  = false
+                        viewModel.closeSetup()
                         showResult = false
                         viewModel.startGame(config, pBType)
                     },
@@ -92,7 +92,7 @@ fun GameWindow(viewModel: GameViewModel) {
                         if (gameState == null && viewModel.hasSavedGame()) {
                             viewModel.resumeSavedGame()
                         }
-                        showSetup = false
+                        viewModel.closeSetup()
                     }
                 )
             }
@@ -100,8 +100,8 @@ fun GameWindow(viewModel: GameViewModel) {
             if (showResult && !showSetup) {
                 ResultOverlay(
                     gameState   = gameState,
-                    onPlayAgain = { showResult = false; showSetup = true },
-                    onNewGame   = { showResult = false; showSetup = true }
+                    onPlayAgain = { showResult = false; viewModel.openSetup() },
+                    onNewGame   = { showResult = false; viewModel.openSetup() }
                 )
             }
         }

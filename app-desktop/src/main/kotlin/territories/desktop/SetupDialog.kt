@@ -118,6 +118,11 @@ fun SetupDialog(
                             modifier = Modifier.fillMaxWidth()
                         ) { Text("Resume Current Game") }
                     }
+
+                    Text(
+                        "Shortcuts: Ctrl+Z undo · Ctrl+N new game",
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
             }
         }

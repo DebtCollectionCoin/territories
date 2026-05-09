@@ -31,6 +31,13 @@ class GameViewModel {
     private val _isAiThinking = MutableStateFlow(false)
     val isAiThinking: StateFlow<Boolean> = _isAiThinking.asStateFlow()
 
+    /** Whether the new-game / setup dialog is currently shown. */
+    private val _showSetup = MutableStateFlow(true)
+    val showSetup: StateFlow<Boolean> = _showSetup.asStateFlow()
+
+    fun openSetup() { _showSetup.value = true }
+    fun closeSetup() { _showSetup.value = false }
+
     private var session: LocalGameSession? = null
     private var aiPlayer: AiPlayer? = null
     private var playerBType: PlayerType = PlayerType.HUMAN
