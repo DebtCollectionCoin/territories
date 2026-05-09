@@ -11,20 +11,24 @@ import territories.engine.model.Player
  */
 fun buildBoardDescription(state: GameState): String {
     val board = state.board
-    val a = state.score.playerA
-    val b = state.score.playerB
     val turn = when {
         state.isGameOver -> "game over"
         state.currentPlayer == Player.A -> "Blue's turn"
-        else -> "Red's turn"
+        state.currentPlayer == Player.B -> "Red's turn"
+        state.currentPlayer == Player.C -> "Green's turn"
+        state.currentPlayer == Player.D -> "Yellow's turn"
+        else -> "no active player"
+    }
+    val labels = mapOf(
+        Player.A to "Blue", Player.B to "Red",
+        Player.C to "Green", Player.D to "Yellow"
+    )
+    val scoreParts = state.players.joinToString(", ") { p ->
+        "${labels[p] ?: p.name} ${state.score.forPlayer(p)}"
     }
     val last = state.lastMove?.let { coord ->
-        val who = when (board.get(coord).dot) {
-            Player.A -> "Blue"
-            Player.B -> "Red"
-            else -> "Last"
-        }
+        val who = labels[board.get(coord).dot] ?: "Last"
         ", $who placed at column ${coord.col + 1} row ${coord.row + 1}"
     } ?: ""
-    return "${board.cols} by ${board.rows} game board. Blue $a, Red $b. $turn$last"
+    return "${board.cols} by ${board.rows} game board. $scoreParts. $turn$last"
 }

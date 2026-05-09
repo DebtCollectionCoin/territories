@@ -18,7 +18,10 @@ class GameEngine(val config: GameConfig) {
         lastMove = null,
         winner = Player.NONE,
         config = config,
-        score = Score()
+        score = Score(),
+        players = config.seats,
+        eliminated = emptySet(),
+        passes = 0
     )
 
     /**
@@ -61,8 +64,8 @@ class GameEngine(val config: GameConfig) {
         )
         val newScore = scoreCalculator.calculate(intermediateState)
 
-        // Step 6: Build new state with toggled player
-        val nextPlayer = player.opponent()
+        // Step 6: Build new state with next active seat
+        val nextPlayer = state.nextSeat(player)
         var newState = state.copy(
             board = newBoard,
             currentPlayer = nextPlayer,
@@ -71,7 +74,8 @@ class GameEngine(val config: GameConfig) {
             lastMove = coord,
             score = newScore,
             phase = GamePhase.IN_PROGRESS,
-            winner = Player.NONE
+            winner = Player.NONE,
+            passes = 0
         )
 
         // Step 7: Check game over
@@ -85,11 +89,35 @@ class GameEngine(val config: GameConfig) {
         return Result.success(newState)
     }
 
-    fun surrender(state: GameState, player: Player): GameState = state.copy(
-        phase = GamePhase.SURRENDERED,
-        winner = player.opponent(),
-        currentPlayer = player
-    )
+    fun surrender(state: GameState, player: Player): GameState {
+        // For 2-player games, surrender ends the game with the opponent winning.
+        // For N>2, the surrendering seat is added to `eliminated` and the game
+        // continues among the remaining seats; if only one seat remains, the
+        // game ends with them as winner.
+        if (state.players.size == 2) {
+            return state.copy(
+                phase = GamePhase.SURRENDERED,
+                winner = player.opponent(),
+                currentPlayer = player
+            )
+        }
+        val newEliminated = state.eliminated + player
+        val activeAfter = state.players.filter { it !in newEliminated }
+        return if (activeAfter.size <= 1) {
+            state.copy(
+                phase = GamePhase.SURRENDERED,
+                winner = activeAfter.firstOrNull() ?: Player.NONE,
+                eliminated = newEliminated,
+                currentPlayer = player
+            )
+        } else {
+            val next = state.nextSeat(player)
+            state.copy(
+                eliminated = newEliminated,
+                currentPlayer = next
+            )
+        }
+    }
 
     // ── Private helpers ──────────────────────────────────────────────────────
 

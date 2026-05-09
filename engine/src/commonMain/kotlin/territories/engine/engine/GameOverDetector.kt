@@ -8,12 +8,9 @@ class GameOverDetector(private val legalMoveChecker: LegalMoveChecker = LegalMov
     fun isGameOver(state: GameState): Boolean =
         !legalMoveChecker.hasLegalMoves(state)
 
-    fun determineWinner(state: GameState): Player {
-        val score = state.score
-        return when {
-            score.playerA > score.playerB -> Player.A
-            score.playerB > score.playerA -> Player.B
-            else -> Player.NONE
-        }
-    }
+    /**
+     * Returns the seat with the highest score, or [Player.NONE] on a tie.
+     * For 2-player games this is equivalent to the previous A-vs-B comparison.
+     */
+    fun determineWinner(state: GameState): Player = state.score.leader
 }

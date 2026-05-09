@@ -193,7 +193,7 @@ class GameController {
     private fun isAiTurn(player: Player): Boolean = when (player) {
         Player.A -> playerAType != PlayerType.HUMAN
         Player.B -> playerBType != PlayerType.HUMAN
-        Player.NONE -> false
+        else -> false
     }
 
     private fun buildAiForCurrentPlayer(config: GameConfig, pAType: PlayerType, pBType: PlayerType): AiPlayer? {

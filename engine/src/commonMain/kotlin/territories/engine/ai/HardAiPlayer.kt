@@ -15,6 +15,10 @@ class HardAiPlayer(
     private val evaluator = BoardEvaluator(ScoreCalculator(), weights)
 
     override suspend fun selectMove(state: GameState): Coord {
+        require(state.players.size == 2) {
+            "HardAiPlayer is only supported in 2-player games (got ${state.players.size}); " +
+            "use EasyAiPlayer for free-for-all until paranoid-minimax FFA support ships."
+        }
         val legal = checker.allLegalMoves(state)
         if (legal.isEmpty()) error("No legal moves available")
         if (legal.size == 1) return legal.first()

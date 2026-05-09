@@ -27,8 +27,15 @@ class CaptureDetector {
         for (group in groups) {
             val filled = floodFill(group.first(), board, player)
             if (!touchesBorder(filled, board)) {
-                val capturedDots = filled.filter { board.get(it).dot == player.opponent() }.toSet()
-                // Only capture if there is at least one opponent dot inside (rule §4.1)
+                // Any non-player, non-empty dot inside the region is captured.
+                // For 2-player games this is equivalent to "opponent dots".
+                // For N-player games, all other seats' dots inside are credited
+                // to [player].
+                val capturedDots = filled.filter {
+                    val d = board.get(it).dot
+                    d != Player.NONE && d != player
+                }.toSet()
+                // Only capture if there is at least one foreign dot inside (rule §4.1)
                 if (capturedDots.isNotEmpty()) {
                     results.add(buildCapturedRegion(filled, board, emptyList()))
                 }

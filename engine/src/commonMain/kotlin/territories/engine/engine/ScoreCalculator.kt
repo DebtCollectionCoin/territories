@@ -15,24 +15,43 @@ class ScoreCalculator {
     }
 
     private fun calculateArea(state: GameState): Score {
-        var a = 0; var b = 0
+        val totals = mutableMapOf(
+            Player.A to 0, Player.B to 0, Player.C to 0, Player.D to 0
+        )
         for (coord in state.board.allCoords()) {
-            when (state.board.get(coord).territory) {
-                Player.A -> a++
-                Player.B -> b++
-                Player.NONE -> Unit
+            val owner = state.board.get(coord).territory
+            if (owner != Player.NONE) {
+                totals[owner] = (totals[owner] ?: 0) + 1
             }
         }
-        return Score(a, b)
+        return Score(
+            playerA = totals[Player.A] ?: 0,
+            playerB = totals[Player.B] ?: 0,
+            playerC = totals[Player.C] ?: 0,
+            playerD = totals[Player.D] ?: 0
+        )
     }
 
     private fun calculateCapturedDots(state: GameState): Score {
-        var a = 0; var b = 0
+        val totals = mutableMapOf(
+            Player.A to 0, Player.B to 0, Player.C to 0, Player.D to 0
+        )
         for (coord in state.board.allCoords()) {
             val cell = state.board.get(coord)
-            if (cell.territory == Player.A && cell.dot == Player.B) a++
-            if (cell.territory == Player.B && cell.dot == Player.A) b++
+            // A captured dot is a stone of one colour sitting in another
+            // colour's territory. Credit goes to the territory owner.
+            if (cell.territory != Player.NONE &&
+                cell.dot != Player.NONE &&
+                cell.dot != cell.territory
+            ) {
+                totals[cell.territory] = (totals[cell.territory] ?: 0) + 1
+            }
         }
-        return Score(a, b)
+        return Score(
+            playerA = totals[Player.A] ?: 0,
+            playerB = totals[Player.B] ?: 0,
+            playerC = totals[Player.C] ?: 0,
+            playerD = totals[Player.D] ?: 0
+        )
     }
 }

@@ -172,7 +172,7 @@ class AiPlayerTest {
             val ai: territories.engine.ai.AiPlayer = when (state.currentPlayer) {
                 Player.A -> easyA
                 Player.B -> mediumB
-                Player.NONE -> break
+                else -> break
             }
             val coord = ai.selectMove(state)
             val result = engine.applyMove(state, coord)

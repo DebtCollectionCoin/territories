@@ -337,12 +337,12 @@ class UiController(
         resultTitle.textContent = when (state.winner) {
             Player.A -> "Blue Wins!"
             Player.B -> "Red Wins!"
-            Player.NONE -> "It's a Draw"
+            else     -> "It's a Draw"
         }
         when (state.winner) {
             Player.A -> resultTitle.classList.add("player-a")
             Player.B -> resultTitle.classList.add("player-b")
-            Player.NONE -> resultTitle.classList.add("draw")
+            else     -> resultTitle.classList.add("draw")
         }
 
         if (state.winner != Player.NONE) {
