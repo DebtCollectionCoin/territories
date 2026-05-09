@@ -79,13 +79,21 @@ fun GameWindow(viewModel: GameViewModel) {
             // ── Overlays ─────────────────────────────────────────────
             if (showSetup) {
                 SetupDialog(
-                    showResume = gameState != null && gameState?.isGameOver == false,
+                    showResume = viewModel.hasSavedGame() ||
+                                 (gameState != null && gameState?.isGameOver == false),
                     onStart    = { config, pBType ->
                         showSetup  = false
                         showResult = false
                         viewModel.startGame(config, pBType)
                     },
-                    onResume   = { showSetup = false }
+                    onResume   = {
+                        // If a fresh launch with a save on disk, load it.
+                        // Otherwise the existing in-memory game continues.
+                        if (gameState == null && viewModel.hasSavedGame()) {
+                            viewModel.resumeSavedGame()
+                        }
+                        showSetup = false
+                    }
                 )
             }
 

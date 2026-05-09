@@ -1,6 +1,5 @@
 package territories.engine.ai
 
-import kotlinx.coroutines.withContext
 import territories.engine.engine.GameEngine
 import territories.engine.engine.LegalMoveChecker
 import territories.engine.engine.ScoreCalculator
@@ -30,10 +29,10 @@ class HardAiPlayer(
         }.ifEmpty { legal }
 
         AiLog.log("─── Hard AI turn (player=$player) ───")
-        AiLog.log("legal=${legal.size} candidates=${candidates.size} depth=$maxDepth budget=${maxTimeMs}ms")
+        AiLog.log("legal=${legal.size} candidates=${candidates.size} maxDepth=$maxDepth budget=${maxTimeMs}ms")
 
         // Sort moves by 1-ply heuristic for better alpha-beta pruning
-        val ordered = sortMoves(candidates, state, player)
+        var ordered = sortMoves(candidates, state, player)
 
         // Show top-5 1-ply previews so the user can sanity-check the heuristic.
         val topPreviews = ordered.take(5).mapNotNull { coord ->
@@ -44,24 +43,65 @@ class HardAiPlayer(
             AiLog.log("  preview ${coord.col},${coord.row}  ${b.summary()}")
         }
 
+        // Iterative deepening: search depths 1..maxDepth in turn. Each completed
+        // iteration overwrites bestMove and re-orders moves for the next pass
+        // (PV-first heuristic). If the deadline hits mid-iteration we keep the
+        // last fully-completed depth's bestMove — guaranteed to be at least as
+        // good as a 1-ply choice and often much better.
         var bestMove = ordered.first()
         var bestScore = Int.MIN_VALUE
-        var evaluated = 0
+        var lastCompletedDepth = 0
+        var totalEvaluated = 0
 
-        for (coord in ordered) {
+        for (depth in 1..maxDepth) {
             if (currentTimeMs() > deadline) break
-            val newState = engine.applyMove(state, coord).getOrNull() ?: continue
-            val score = minimax(newState, maxDepth - 1, Int.MIN_VALUE, Int.MAX_VALUE, false, player, deadline)
-            evaluated++
-            if (score > bestScore) {
-                bestScore = score
-                bestMove = coord
+
+            var iterBest = ordered.first()
+            var iterScore = Int.MIN_VALUE
+            var iterEvaluated = 0
+            var completed = true
+
+            for (coord in ordered) {
+                if (currentTimeMs() > deadline) {
+                    completed = false
+                    break
+                }
+                val newState = engine.applyMove(state, coord).getOrNull() ?: continue
+                val score = minimax(
+                    newState, depth - 1,
+                    Int.MIN_VALUE, Int.MAX_VALUE,
+                    isMaximizing = false,
+                    rootPlayer = player,
+                    deadline = deadline
+                )
+                iterEvaluated++
+                if (score > iterScore) {
+                    iterScore = score
+                    iterBest = coord
+                }
+            }
+
+            totalEvaluated += iterEvaluated
+            if (completed) {
+                bestMove = iterBest
+                bestScore = iterScore
+                lastCompletedDepth = depth
+                AiLog.log("  depth=$depth ✓ best=(${iterBest.col},${iterBest.row}) score=$iterScore eval=$iterEvaluated")
+                // Re-order: put the best move first so alpha-beta prunes deeper next pass.
+                ordered = listOf(iterBest) + ordered.filter { it != iterBest }
+            } else {
+                AiLog.log("  depth=$depth ⏱ aborted at eval=$iterEvaluated, keeping depth=$lastCompletedDepth result")
+                break
             }
         }
+
         val elapsed = currentTimeMs() - startMs
         val chosenBreakdown = engine.applyMove(state, bestMove).getOrNull()
             ?.let { evaluator.breakdown(it, player) }
-        AiLog.log("CHOSEN ${bestMove.col},${bestMove.row}  minimaxScore=$bestScore  evaluated=$evaluated  elapsed=${elapsed}ms")
+        AiLog.log(
+            "CHOSEN ${bestMove.col},${bestMove.row}  score=$bestScore  " +
+            "depth=$lastCompletedDepth  evaluated=$totalEvaluated  elapsed=${elapsed}ms"
+        )
         if (chosenBreakdown != null) AiLog.log("  → after-move ${chosenBreakdown.summary()}")
         return bestMove
     }

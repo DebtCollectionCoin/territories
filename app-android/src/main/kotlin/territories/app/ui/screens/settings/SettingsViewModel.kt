@@ -22,7 +22,17 @@ class SettingsViewModel @Inject constructor(
         initialValue = ThemeMode.SYSTEM
     )
 
+    val colorBlindMode: StateFlow<Boolean> = prefs.colorBlindMode.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = false
+    )
+
     fun onThemeChanged(mode: ThemeMode) {
         viewModelScope.launch { prefs.setThemeMode(mode) }
+    }
+
+    fun onColorBlindModeChanged(enabled: Boolean) {
+        viewModelScope.launch { prefs.setColorBlindMode(enabled) }
     }
 }

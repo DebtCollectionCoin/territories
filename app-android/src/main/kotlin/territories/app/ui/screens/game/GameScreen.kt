@@ -59,6 +59,7 @@ fun GameScreen(
 ) {
     val stateOrNull  by vm.gameState.collectAsState()
     val isAiThinking by vm.isAiThinking.collectAsState()
+    val colorBlindMode by vm.colorBlindMode.collectAsState()
 
     // Show nothing until first state is available
     val state = stateOrNull ?: return
@@ -131,7 +132,8 @@ fun GameScreen(
                 onCoordClick = { coord ->
                     if (!state.isGameOver && !isAiThinking) vm.onCellTapped(coord)
                 },
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
+                colorBlindMode = colorBlindMode
             )
 
             if (isAiThinking) {

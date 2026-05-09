@@ -53,7 +53,8 @@ private val LastMoveRingColor      = Color(0xFFFFB300)   // Amber 600
 fun BoardCanvas(
     state: GameState,
     onCoordClick: (Coord) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    colorBlindMode: Boolean = false
 ) {
     data class Layout(val cellSize: Float, val offsetX: Float, val offsetY: Float)
 
@@ -205,7 +206,9 @@ fun BoardCanvas(
             )
         }
 
-        // 5. Dots — stone style (drop shadow + radial highlight)
+        // 5. Dots — stone style (drop shadow + radial highlight).
+        // In colorBlindMode, Player B is rendered as a rounded square so
+        // shape encodes the player identity in addition to color.
         val dotRadius = cs * 0.36f
         for (coord in board.allCoords()) {
             val cell = board.get(coord)
@@ -215,26 +218,49 @@ fun BoardCanvas(
                 if (r <= 0f) continue
                 val cx = ox + coord.col * cs
                 val cy = oy + coord.row * cs
-
-                // Drop shadow (offset down-right)
-                drawCircle(
-                    color  = DotShadow,
-                    radius = r,
-                    center = Offset(cx + 1.5f, cy + 2f)
-                )
-
-                // Stone gradient: lighter on top-left, darker bottom-right
                 val baseColor = if (cell.dot == Player.A) PlayerAColor else PlayerBColor
                 val highlight = if (cell.dot == Player.A) PlayerAHighlight else PlayerBHighlight
-                drawCircle(
-                    brush = Brush.radialGradient(
-                        colors = listOf(highlight, baseColor),
-                        center = Offset(cx - r * 0.35f, cy - r * 0.35f),
-                        radius = r * 1.4f
-                    ),
-                    radius = r,
-                    center = Offset(cx, cy)
-                )
+                val asSquare = colorBlindMode && cell.dot == Player.B
+
+                if (asSquare) {
+                    val side = r * 1.78f  // visually similar area to a circle of radius r
+                    val half = side / 2f
+                    // Drop shadow
+                    drawRoundRect(
+                        color   = DotShadow,
+                        topLeft = Offset(cx - half + 1.5f, cy - half + 2f),
+                        size    = Size(side, side),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(side * 0.18f)
+                    )
+                    drawRoundRect(
+                        brush = Brush.linearGradient(
+                            colors = listOf(highlight, baseColor),
+                            start  = Offset(cx - half, cy - half),
+                            end    = Offset(cx + half, cy + half)
+                        ),
+                        topLeft = Offset(cx - half, cy - half),
+                        size    = Size(side, side),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(side * 0.18f)
+                    )
+                } else {
+                    // Drop shadow (offset down-right)
+                    drawCircle(
+                        color  = DotShadow,
+                        radius = r,
+                        center = Offset(cx + 1.5f, cy + 2f)
+                    )
+
+                    // Stone gradient: lighter on top-left, darker bottom-right
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(highlight, baseColor),
+                            center = Offset(cx - r * 0.35f, cy - r * 0.35f),
+                            radius = r * 1.4f
+                        ),
+                        radius = r,
+                        center = Offset(cx, cy)
+                    )
+                }
             }
         }
 

@@ -22,6 +22,7 @@ fun SettingsScreen(
     vm: SettingsViewModel = hiltViewModel()
 ) {
     val themeMode by vm.themeMode.collectAsState()
+    val colorBlindMode by vm.colorBlindMode.collectAsState()
 
     Scaffold(
         topBar = {
@@ -49,6 +50,28 @@ fun SettingsScreen(
                 current = themeMode,
                 onSelect = { vm.onThemeChanged(it) }
             )
+
+            HorizontalDivider()
+
+            SectionHeader("Accessibility")
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Color-blind mode", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "Renders Red player as squares so colors aren't the only cue",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = colorBlindMode,
+                    onCheckedChange = { vm.onColorBlindModeChanged(it) }
+                )
+            }
 
             HorizontalDivider()
 

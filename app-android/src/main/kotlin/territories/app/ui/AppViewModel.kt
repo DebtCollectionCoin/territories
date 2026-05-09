@@ -20,4 +20,10 @@ class AppViewModel @Inject constructor(
         started      = SharingStarted.Eagerly,
         initialValue = ThemeMode.SYSTEM
     )
+
+    val colorBlindMode: StateFlow<Boolean> = prefs.colorBlindMode.stateIn(
+        scope        = viewModelScope,
+        started      = SharingStarted.Eagerly,
+        initialValue = false
+    )
 }

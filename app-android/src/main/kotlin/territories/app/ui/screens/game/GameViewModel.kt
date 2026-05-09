@@ -5,9 +5,12 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import territories.app.data.AppPreferencesRepository
 import territories.app.data.GameConfigHolder
 import territories.app.data.GameRepository
 import territories.engine.ai.AiPlayer
@@ -28,7 +31,8 @@ import javax.inject.Inject
 @HiltViewModel
 class GameViewModel @Inject constructor(
     private val configHolder: GameConfigHolder,
-    private val repository: GameRepository
+    private val repository: GameRepository,
+    prefs: AppPreferencesRepository
 ) : ViewModel() {
 
     private lateinit var session: LocalGameSession
@@ -41,6 +45,12 @@ class GameViewModel @Inject constructor(
     // Mirror the session's StateFlow in our own so we control when it updates
     private val _gameState = MutableStateFlow<GameState?>(null)
     val gameState: StateFlow<GameState?> = _gameState.asStateFlow()
+
+    val colorBlindMode: StateFlow<Boolean> = prefs.colorBlindMode.stateIn(
+        scope        = viewModelScope,
+        started      = SharingStarted.Eagerly,
+        initialValue = false
+    )
 
     init {
         newGame()

@@ -23,6 +23,7 @@ Thumbs.db
 # Android keystore (NEVER commit signing keys)
 *.jks
 *.keystore
+keystore.properties
 
 # Compiled outputs
 *.class

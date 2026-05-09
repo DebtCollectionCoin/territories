@@ -37,6 +37,11 @@ class GameViewModel {
     private var lastConfig: GameConfig? = null
     private var lastBType: PlayerType = PlayerType.HUMAN
 
+    /** Replayed moves of the live game — kept in sync to persist after each turn. */
+    private val appliedMoves = mutableListOf<Move>()
+
+    fun hasSavedGame(): Boolean = SavedGameStore.hasSaved()
+
     fun startGame(config: GameConfig, pBType: PlayerType) {
         session?.close()
         lastConfig = config
@@ -44,9 +49,45 @@ class GameViewModel {
         playerBType = pBType
         session = GameSessionFactory.createLocal(config)
         aiPlayer = buildAi(pBType, config)
+        appliedMoves.clear()
+        SavedGameStore.clear()
         _gameState.value = session!!.stateFlow.value
         _isAiThinking.value = false
         if (isAiTurn(config.firstPlayer)) scheduleAiTurn()
+    }
+
+    /**
+     * Restore an in-progress game from disk by replaying its move list on
+     * a fresh engine. Returns false if there's no save or it's corrupt.
+     */
+    fun resumeSavedGame(): Boolean {
+        val saved = SavedGameStore.load() ?: return false
+        return try {
+            session?.close()
+            lastConfig = saved.config
+            lastBType = saved.playerBType
+            playerBType = saved.playerBType
+            session = GameSessionFactory.createLocal(saved.config)
+            aiPlayer = buildAi(saved.playerBType, saved.config)
+            appliedMoves.clear()
+
+            scope.launch {
+                val s = session ?: return@launch
+                for (move in saved.moves) {
+                    val result = s.submitMove(move)
+                    if (result.isSuccess) appliedMoves.add(move) else break
+                }
+                _gameState.value = s.stateFlow.value
+                val state = s.stateFlow.value
+                if (!state.isGameOver && isAiTurn(state.currentPlayer)) {
+                    scheduleAiTurn()
+                }
+            }
+            true
+        } catch (_: Throwable) {
+            SavedGameStore.clear()
+            false
+        }
     }
 
     fun humanMove(coord: Coord) {
@@ -55,10 +96,13 @@ class GameViewModel {
         if (state.isGameOver) return
         if (isAiTurn(state.currentPlayer)) return
         scope.launch {
-            val result = s.submitMove(Move.PlaceDot(coord, state.currentPlayer, state.moveCount + 1))
+            val move = Move.PlaceDot(coord, state.currentPlayer, state.moveCount + 1)
+            val result = s.submitMove(move)
             if (result.isSuccess) {
+                appliedMoves.add(move)
                 _gameState.value = s.stateFlow.value
                 val newState = result.getOrThrow()
+                persist(newState)
                 if (!newState.isGameOver && isAiTurn(newState.currentPlayer)) {
                     scheduleAiTurn()
                 }
@@ -68,8 +112,13 @@ class GameViewModel {
 
     fun undo() {
         scope.launch {
-            session?.requestUndo()
-            _gameState.value = session?.stateFlow?.value
+            val didUndo = session?.requestUndo() ?: false
+            if (didUndo && appliedMoves.isNotEmpty()) {
+                appliedMoves.removeAt(appliedMoves.size - 1)
+            }
+            val newState = session?.stateFlow?.value
+            _gameState.value = newState
+            if (newState != null) persist(newState)
         }
     }
 
@@ -79,6 +128,8 @@ class GameViewModel {
         scope.launch {
             s.surrender(player)
             _gameState.value = s.stateFlow.value
+            // Game's over — clear save so we don't auto-resume a finished game.
+            SavedGameStore.clear()
         }
     }
 
@@ -94,14 +145,33 @@ class GameViewModel {
             _isAiThinking.value = true
             val state = s.stateFlow.value
             val coord = ai.selectMove(state)
-            s.submitMove(Move.PlaceDot(coord, state.currentPlayer, state.moveCount + 1))
+            val move = Move.PlaceDot(coord, state.currentPlayer, state.moveCount + 1)
+            val result = s.submitMove(move)
+            if (result.isSuccess) appliedMoves.add(move)
             _isAiThinking.value = false
             _gameState.value = s.stateFlow.value
             val newState = s.stateFlow.value
+            persist(newState)
             if (!newState.isGameOver && isAiTurn(newState.currentPlayer)) {
                 scheduleAiTurn()
             }
         }
+    }
+
+    private fun persist(state: GameState) {
+        val cfg = lastConfig ?: return
+        if (state.isGameOver) {
+            SavedGameStore.clear()
+            return
+        }
+        SavedGameStore.save(
+            SavedGame(
+                config = cfg,
+                playerAType = PlayerType.HUMAN,
+                playerBType = lastBType,
+                moves = appliedMoves.toList()
+            )
+        )
     }
 
     private fun buildAi(type: PlayerType, config: GameConfig): AiPlayer? {
