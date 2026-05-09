@@ -36,6 +36,7 @@ import territories.engine.model.Coord
 import territories.engine.model.GameState
 import territories.engine.model.Player
 import territories.sharedui.Palette
+import territories.sharedui.buildBoardDescription
 
 // ── Refined palette (sourced from :shared-ui Palette.LIGHT) ────────
 private val P = Palette.LIGHT
@@ -313,21 +314,4 @@ fun BoardCanvas(
             }
         }
     }
-}
-
-private fun buildBoardDescription(state: GameState): String {
-    val board = state.board
-    val a = state.score.playerA
-    val b = state.score.playerB
-    val turn = if (state.isGameOver) "game over"
-        else if (state.currentPlayer == Player.A) "Blue's turn" else "Red's turn"
-    val last = state.lastMove?.let { coord ->
-        val who = when (board.get(coord).dot) {
-            Player.A -> "Blue"
-            Player.B -> "Red"
-            else -> "Last"
-        }
-        ", $who placed at column ${coord.col + 1} row ${coord.row + 1}"
-    } ?: ""
-    return "${board.cols} by ${board.rows} game board. Blue $a, Red $b. $turn$last"
 }
