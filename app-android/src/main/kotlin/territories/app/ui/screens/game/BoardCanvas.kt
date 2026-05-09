@@ -35,21 +35,23 @@ import androidx.compose.ui.semantics.semantics
 import territories.engine.model.Coord
 import territories.engine.model.GameState
 import territories.engine.model.Player
+import territories.sharedui.Palette
 
-// ── Refined palette ────────────────────────────────────────────────
-internal val PlayerAColor          = Color(0xFF3949AB)   // Indigo 600
-internal val PlayerAHighlight      = Color(0xFF7986CB)   // Indigo 300 (top-left of stone)
-internal val PlayerATerritory      = Color(0x553949AB)
-internal val PlayerBColor          = Color(0xFFD84A4A)   // Warm coral red
-internal val PlayerBHighlight      = Color(0xFFE57373)
-internal val PlayerBTerritory      = Color(0x55D84A4A)
-private val GridColorMinor         = Color(0x1F000000)
-private val GridColorMajor         = Color(0x33000000)
-private val BoardBgTop             = Color(0xFFFBF7EC)   // Warm cream
-private val BoardBgBottom          = Color(0xFFF1EAD8)
-private val BoardBorder            = Color(0x33000000)
-private val DotShadow              = Color(0x55000000)
-private val LastMoveRingColor      = Color(0xFFFFB300)   // Amber 600
+// ── Refined palette (sourced from :shared-ui Palette.LIGHT) ────────
+private val P = Palette.LIGHT
+internal val PlayerAColor          = Color(P.playerA)
+internal val PlayerAHighlight      = Color(P.playerAHighlight)
+internal val PlayerATerritory      = Color(P.playerATerritory)
+internal val PlayerBColor          = Color(P.playerB)
+internal val PlayerBHighlight      = Color(P.playerBHighlight)
+internal val PlayerBTerritory      = Color(P.playerBTerritory)
+private val GridColorMinor         = Color(P.gridMinor)
+private val GridColorMajor         = Color(P.gridMajor)
+private val BoardBgTop             = Color(P.boardBgTop)
+private val BoardBgBottom          = Color(P.boardBgBottom)
+private val BoardBorder            = Color(P.boardBorder)
+private val DotShadow              = Color(P.dotShadow)
+private val LastMoveRingColor      = Color(P.lastMoveRing)
 
 @Composable
 fun BoardCanvas(

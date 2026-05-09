@@ -72,6 +72,7 @@ android {
 dependencies {
     implementation(project(":engine"))
     implementation(project(":session"))
+    implementation(project(":shared-ui"))
 
     // Compose BOM
     val composeBom = platform(libs.compose.bom)

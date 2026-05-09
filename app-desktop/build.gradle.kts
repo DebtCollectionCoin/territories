@@ -12,6 +12,7 @@ kotlin {
 dependencies {
     implementation(project(":engine"))
     implementation(project(":session"))
+    implementation(project(":shared-ui"))
     implementation(compose.desktop.currentOs)
     implementation(compose.material3)
     implementation(libs.kotlinx.coroutines.core)
