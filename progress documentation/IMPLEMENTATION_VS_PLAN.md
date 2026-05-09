@@ -42,22 +42,22 @@ Pinch-to-zoom and pan on the Android board canvas: not yet verified for the larg
 | ID | Task | Status |
 |----|------|--------|
 | D-01 | Compose Multiplatform desktop module | ✅ — `:app-desktop` |
-| D-02 | Shared UI module | 🟡 — UI was duplicated per platform instead of factored into `shared-ui`; engine + session are shared |
+| D-02 | Shared UI module | 🟡 — `:shared-ui` KMP module ships [Palette](../shared-ui/src/commonMain/kotlin/territories/sharedui/Palette.kt) and [BoardSemantics](../shared-ui/src/commonMain/kotlin/territories/sharedui/BoardSemantics.kt). Full `BoardCanvas` migration deferred (needs Android SDK to verify) — see [SHARED_UI_PLAN.md](SHARED_UI_PLAN.md) |
 | D-03 | Desktop `main()` window | ✅ |
 | D-04 | Mouse click → coord | ✅ |
-| D-05 | Keyboard shortcuts | 🟡 — ESC menu present; Ctrl+Z undo not wired |
-| D-06 | Desktop persistence | ⏳ |
-| D-07 | Installer packaging | ⏳ |
-| D-08 | Code signing | ⏳ |
+| D-05 | Keyboard shortcuts | ✅ — Ctrl+Z undo + ESC menu wired in [Main.kt](../app-desktop/src/main/kotlin/territories/desktop/Main.kt) |
+| D-06 | Desktop persistence | ✅ — [SavedGameStore](../app-desktop/src/main/kotlin/territories/desktop/SavedGameStore.kt) auto-saves after each move; resume on launch |
+| D-07 | Installer packaging | ✅ — Compose Desktop `packageDeb` / `packageDmg` / `packageMsi` configured in [build.gradle.kts](../app-desktop/build.gradle.kts) |
+| D-08 | Code signing | ⏳ — needs platform-specific certificates |
 | W-01 | Compose-Web vs WASM decision | ✅ — went **neither**; chose Kotlin/JS + hand-rolled HTML/Canvas/CSS for full design control |
 | W-02 | `:app-web` module | ✅ |
 | W-03 | Canvas rendering | ✅ — paper aesthetic, HiDPI, render-on-animation |
 | W-04 | Touch + mouse input | ✅ |
-| W-05 | URL-based game state | ⏳ |
-| W-06 | Static-host deploy | ⏳ |
+| W-05 | URL-based game state | ✅ — `#g=...` fragment share links, see [SavedGame.kt](../app-web/src/jsMain/kotlin/territories/web/SavedGame.kt) |
+| W-06 | Static-host deploy | ✅ — GitHub Pages workflow [deploy-pages.yml](../.github/workflows/deploy-pages.yml) |
 | W-07 | PWA manifest + service worker | ✅ |
 | W-08 | Responsive layout | ✅ |
-| L-01..L-03 | Linux packaging | ⏳ |
+| L-01..L-03 | Linux packaging | ✅ — `.deb` via Compose Desktop `packageDeb` |
 | I-01..I-07 | iOS / macOS | ⏳ |
 
 ## AI (`06_ai_opponent.md`)
@@ -70,7 +70,7 @@ Pinch-to-zoom and pan on the Android board canvas: not yet verified for the larg
 | AI-04 | Territory potential heuristic | 🟡 — superseded by BFS-depth-from-border, see below |
 | AI-05 | Capture imminence heuristic | 🟡 — implicit in `oppTrapped` term of new evaluator |
 | AI-06 | Move ordering for α-β | ✅ |
-| AI-07 | Iterative deepening | ⏳ — fixed-depth with timeout instead |
+| AI-07 | Iterative deepening | ✅ — depths 1..maxDepth with deadline cutoff in [HardAiPlayer.kt](../engine/src/commonMain/kotlin/territories/engine/ai/HardAiPlayer.kt) |
 
 ### Evaluator deviation from plan
 
@@ -94,7 +94,7 @@ Verified via the `:engine:runSimulation` task: Medium-vs-Medium games now produc
 
 The web app is the **closest** to the planning-doc mockups: home / setup / game / result / settings / how-to-play all match the layouts shown there, with a paper-on-table aesthetic that goes beyond the spec. Android implements the same screen set in Compose. Desktop is functional but cosmetically lighter.
 
-Animations shipped: dot placement scale-in, capture ripple, result confetti (web), AI thinking indicator, score animation (web). Not yet shipped: territory-fill flood expansion animation on Android.
+Animations shipped: dot placement scale-in, capture ripple, result confetti(web), AI thinking indicator, score animation (web). Not yet shipped: territory-fill flood expansion animation on Android.
 
 ## Non-goals confirmed skipped
 

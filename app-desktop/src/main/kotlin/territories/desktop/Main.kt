@@ -13,23 +13,25 @@ import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.application
 
 fun main() = application {
+    val viewModel = remember { GameViewModel() }
+    DisposableEffect(Unit) {
+        onDispose { viewModel.dispose() }
+    }
     Window(
         onCloseRequest = ::exitApplication,
         title          = "Territories",
         state          = WindowState(width = 1100.dp, height = 750.dp),
         onKeyEvent     = event@{ e ->
-            if (e.type == KeyEventType.KeyDown && e.isCtrlPressed && e.key == Key.Z) {
-                // Undo is handled inside GameWindow via the ViewModel
-                // We return false here and let the focusable composable handle it
-                // Alternatively, we expose the viewModel here:
-                false
-            } else false
+            if (e.type != KeyEventType.KeyDown) return@event false
+            if (e.isCtrlPressed && e.key == Key.Z) {
+                if (viewModel.canUndo()) {
+                    viewModel.undo()
+                    return@event true
+                }
+            }
+            false
         }
     ) {
-        val viewModel = remember { GameViewModel() }
-        DisposableEffect(Unit) {
-            onDispose { viewModel.dispose() }
-        }
         GameWindow(viewModel = viewModel)
     }
 }
