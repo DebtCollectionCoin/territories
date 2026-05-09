@@ -27,13 +27,16 @@ class BoardEvaluator(private val scorer: ScoreCalculator) {
         val ownDepthSum: Int,
         val frontier: Int,
         val proximity: Int,
+        val oppEscapeArea: Int,
+        val ownEscapeArea: Int,
         val total: Int
     ) {
         fun summary(): String =
             "total=$total | scoreΔ=$realScore (×1000) " +
             "oTrap=$oppTrapped (×400) sTrap=$ownTrapped (×-380) " +
             "oDepth=$oppDepthSum (×6) sDepth=$ownDepthSum (×-6) " +
-            "frontier=$frontier (×8) prox=$proximity (×8)"
+            "frontier=$frontier (×8) prox=$proximity (×8) " +
+            "oEscape=$oppEscapeArea (×-4) sEscape=$ownEscapeArea (×1)"
     }
 
     fun evaluate(state: GameState, player: Player): Int =
@@ -122,13 +125,28 @@ class BoardEvaluator(private val scorer: ScoreCalculator) {
             }
         }
 
+        // Escape areas: number of border-reachable cells from each player's
+        // perspective. Shrinking the *opponent's* escape area is the direct
+        // signal of enclosure — a wall that orphans a chunk from the border
+        // produces a large drop here. Without this term the heuristic only
+        // rewards burial depth, which can be gamed by walking the border
+        // forever without ever closing a region.
+        var oppEscapeArea = 0
+        var ownEscapeArea = 0
+        for (col in 0 until board.cols) for (row in 0 until board.rows) {
+            if (distOpp[col][row] >= 0) oppEscapeArea++
+            if (distOwn[col][row] >= 0) ownEscapeArea++
+        }
+
         val total = realScore     * 1000 +
                     oppTrapped    * 400 -
                     ownTrapped    * 380 +
                     oppDepthSum   * 6 -
                     ownDepthSum   * 6 +
                     frontier      * 8 +
-                    proximity     * 8
+                    proximity     * 8 -
+                    oppEscapeArea * 4 +
+                    ownEscapeArea * 1
 
         return Breakdown(
             realScore = realScore,
@@ -138,6 +156,8 @@ class BoardEvaluator(private val scorer: ScoreCalculator) {
             ownDepthSum = ownDepthSum,
             frontier = frontier,
             proximity = proximity,
+            oppEscapeArea = oppEscapeArea,
+            ownEscapeArea = ownEscapeArea,
             total = total
         )
     }
