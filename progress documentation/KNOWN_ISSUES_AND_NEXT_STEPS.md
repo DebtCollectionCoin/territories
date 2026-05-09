@@ -4,39 +4,48 @@
 
 | Severity | Area | Issue |
 |----------|------|-------|
-| 🟡 Medium | AI tuning | New BFS-distance evaluator validated by simulation, but human play-test feedback may show edge cases (e.g. AI over-committing to perimeter walls and ignoring center pressure). Tune weights with `runSimulation` if reported. |
+| 🟡 Medium | AI tuning | Heuristic was empirically tuned via `:engine:runBenchmark` (proximity → 0, frontier → 0, added `componentPressure`). New defaults beat the old heuristic 25-16 over 60 games. Re-run benchmark if human play-test reports regressions. |
 | 🟡 Medium | Kotlin incremental cache | The IC cache for `:engine` corrupted twice during the AI rewrite, silently running stale compiled output. Workaround: `rm -rf engine/build/kotlin` (or full `engine/build`). Watch for repeats; consider disabling IC for that module if it recurs. |
-| 🟡 Medium | Desktop persistence | `:app-desktop` keeps state in memory only — closing the window loses an in-progress game. |
 | 🟢 Low | Shared UI | Per-platform UI duplication (Android Compose vs Desktop Compose vs JS/HTML). Refactoring into a `shared-ui` Compose Multiplatform module would shrink Desktop+Android maintenance, but web would still be hand-rolled. Defer until after first release. |
-| 🟢 Low | Accessibility | No content descriptions or color-blind alternative shape on dots yet. |
-| 🟢 Low | History (Android) | Bonus screen exists but no E2E test that saved games actually replay correctly through `GameEngine`. |
-| 🟢 Low | Web | No URL-share / no deployed instance. PWA installable from `localhost` but offline cache untested in production. |
+| 🟢 Low | Web | URL-share via `#g=` fragment now ships, but PWA offline cache still untested in production. |
 
 ## Recommended next steps (rough priority order)
 
-1. **Human play-test the new AI** on the web build. Decide whether weights need tuning. Reload `app-web/build/dist/js/developmentExecutable/index.html`.
-2. **Wire desktop save/load** — pick SQLDelight or a JSON file under the user-data dir; reuse the move-replay approach already used by Room and the web `SavedGame`.
-3. **Iterative deepening** for Hard AI (`AI-07`). With the deadline already in place this is mostly a wrapping loop around minimax; gives more consistent move quality on slow devices.
-4. **Web deployment** — pick a host (Cloudflare Pages / GitHub Pages / Netlify), wire the existing `jsBrowserDistribution` output to a CI release job.
-5. **Android signing + Play Store internal track** — version is already at `0.1.0` in [version.properties](../version.properties); needs keystore + listing assets.
-6. **Accessibility pass** — content descriptions on Android composables, alt-shape for dots in color-blind mode (square for B, circle for A), high-contrast toggle in Settings.
-7. **Session-module tests** — `LocalGameSession` is now the orchestration layer for two of three apps; it should have its own coroutine-based tests.
-8. **Linux packaging** — `jpackage` `.deb` and `.rpm` from the existing desktop JVM jar. Cheap once Windows installer flow exists.
+1. **Web deployment** — deploy the existing `jsBrowserDistribution` output to a public host (Cloudflare Pages / GitHub Pages / Netlify) and wire to a CI release job. URL-share links require a stable origin to be useful.
+2. **Android signing + Play Store internal track** — keystore + listing assets are documented; finish the upload.
+3. **Human play-test the tuned AI** on the deployed web build, look for regressions.
+4. **Compose Multiplatform shared-ui module** — only worth it once the per-platform UIs diverge in painful ways.
+5. **Hard AI depth tuning** — the depth=4 / 2000 ms budget was set before the new heuristic; revisit with `:engine:runBenchmark` once Hard AI matches are run head-to-head.
 
 ## Things deliberately deferred
 
 - **Compose Multiplatform iOS** — gated on stability; revisit when the rest is shipped.
-- **MCTS Expert AI** — `06_ai_opponent.md` lists this as future. The new BFS-gradient evaluator already plays competently at depth 4, so this is a polish item, not a release blocker.
+- **MCTS Expert AI** — `06_ai_opponent.md` lists this as future. The tuned BFS-gradient evaluator already plays competently at depth 4, so this is a polish item, not a release blocker.
 - **Online multiplayer** — explicit non-goal for v1.0.
+
+## Resolved (recently completed)
+
+- ✅ Iterative deepening for Hard AI
+- ✅ Session-module coroutine tests (11 passing)
+- ✅ Desktop save/load (JSON in user-data dir)
+- ✅ Accessibility pass (color-blind shape, `liveRegion` board announcements, content descriptions)
+- ✅ Linux packaging (jpackage `.deb` + `.rpm`)
+- ✅ Android signing + Play internal track docs
+- ✅ AI heuristic tuned for local encirclement (commit `d3b19b5`)
+- ✅ History replay E2E test (`HistoryReplayTest` in `:engine:jvmTest`)
+- ✅ Web URL-share via `#g=...` fragment + Copy share link button
 
 ## How to verify a release candidate
 
 ```bash
 # unit + AI tests
-./gradlew :engine:jvmTest
+./gradlew :engine:jvmTest :session:jvmTest
 
 # AI sanity simulation (Medium vs Medium, 40 turns)
 ./gradlew :engine:runSimulation
+
+# AI weight benchmark (optional, for heuristic changes)
+./gradlew :engine:runBenchmark -Pbench.args="--games 30 --moves 80"
 
 # build all surfaces
 ./gradlew :app-android:assembleDebug \

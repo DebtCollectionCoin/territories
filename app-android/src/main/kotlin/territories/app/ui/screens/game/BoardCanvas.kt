@@ -28,7 +28,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import territories.engine.model.Coord
 import territories.engine.model.GameState
@@ -126,7 +128,10 @@ fun BoardCanvas(
     Canvas(
         modifier = modifier
             .fillMaxSize()
-            .semantics { contentDescription = buildBoardDescription(state) }
+            .semantics {
+                contentDescription = buildBoardDescription(state)
+                liveRegion = LiveRegionMode.Polite
+            }
             .transformable(state = transformState)
             .graphicsLayer(
                 scaleX = scale,
@@ -314,6 +319,13 @@ private fun buildBoardDescription(state: GameState): String {
     val b = state.score.playerB
     val turn = if (state.isGameOver) "game over"
         else if (state.currentPlayer == Player.A) "Blue's turn" else "Red's turn"
-    val last = state.lastMove?.let { ", last move at column ${it.col + 1} row ${it.row + 1}" } ?: ""
+    val last = state.lastMove?.let { coord ->
+        val who = when (board.get(coord).dot) {
+            Player.A -> "Blue"
+            Player.B -> "Red"
+            else -> "Last"
+        }
+        ", $who placed at column ${coord.col + 1} row ${coord.row + 1}"
+    } ?: ""
     return "${board.cols} by ${board.rows} game board. Blue $a, Red $b. $turn$last"
 }

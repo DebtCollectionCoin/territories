@@ -49,6 +49,56 @@ object SavedGameStore {
     }
 
     fun hasSaved(): Boolean = window.localStorage.getItem(KEY) != null
+
+    /** Encode a SavedGame as a URL-safe base64 string suitable for `#g=` fragment. */
+    fun encodeForShare(game: SavedGame): String {
+        val raw = json.encodeToString(SavedGame.serializer(), game)
+        return urlSafeBase64Encode(raw)
+    }
+
+    /** Decode a SavedGame from the `#g=` fragment, or null on any failure. */
+    fun decodeFromShare(token: String): SavedGame? = try {
+        val raw = urlSafeBase64Decode(token)
+        json.decodeFromString(SavedGame.serializer(), raw)
+    } catch (_: Throwable) {
+        null
+    }
+
+    /** Build a shareable URL pointing at the current page with the given saved game. */
+    fun buildShareUrl(game: SavedGame): String {
+        val loc = window.location
+        val origin = loc.origin
+        val path = loc.pathname
+        return "$origin$path#g=${encodeForShare(game)}"
+    }
+
+    /** Read a SavedGame from `window.location.hash` if present (and clear the fragment). */
+    fun consumeFragment(): SavedGame? {
+        val hash = window.location.hash
+        val prefix = "#g="
+        if (!hash.startsWith(prefix)) return null
+        val token = hash.substring(prefix.length)
+        val saved = decodeFromShare(token) ?: return null
+        // Strip fragment so a refresh doesn't replay the share again
+        try {
+            window.history.replaceState(null, "", window.location.pathname + window.location.search)
+        } catch (_: Throwable) { /* ignore */ }
+        return saved
+    }
+}
+
+private fun urlSafeBase64Encode(s: String): String {
+    // Encode UTF-8 → btoa expects binary string; use encodeURIComponent trick.
+    val utf8 = js("unescape(encodeURIComponent(s))").unsafeCast<String>()
+    val b64 = js("btoa(utf8)").unsafeCast<String>()
+    return b64.replace('+', '-').replace('/', '_').trimEnd('=')
+}
+
+private fun urlSafeBase64Decode(s: String): String {
+    var b64 = s.replace('-', '+').replace('_', '/')
+    while (b64.length % 4 != 0) b64 += "="
+    val raw = js("atob(b64)").unsafeCast<String>()
+    return js("decodeURIComponent(escape(raw))").unsafeCast<String>()
 }
 
 /** Generic settings persisted in localStorage. */

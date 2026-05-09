@@ -27,6 +27,13 @@ class GameController {
     val currentState: GameState? get() = session?.stateFlow?.value
     val isGameActive: Boolean get() = session != null && currentState?.isGameOver == false
 
+    /** Snapshot of the current in-progress game suitable for sharing or storage. */
+    fun currentSavedGame(): SavedGame? {
+        val cfg = config ?: return null
+        if (appliedMoves.isEmpty()) return null
+        return SavedGame(cfg, playerAType, playerBType, appliedMoves.toList())
+    }
+
     fun startGame(config: GameConfig, pAType: PlayerType, pBType: PlayerType) {
         session?.close()
         session = GameSessionFactory.createLocal(config)

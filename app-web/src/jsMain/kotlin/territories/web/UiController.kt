@@ -66,6 +66,7 @@ class UiController(
 
     // In-game menu
     private val btnMenuResume by lazy { document.getElementById("btn-menu-resume") as HTMLButtonElement }
+    private val btnMenuShare by lazy { document.getElementById("btn-menu-share") as HTMLButtonElement }
     private val btnMenuSettings by lazy { document.getElementById("btn-menu-settings") as HTMLButtonElement }
     private val btnMenuNewgame by lazy { document.getElementById("btn-menu-newgame") as HTMLButtonElement }
     private val btnMenuHome by lazy { document.getElementById("btn-menu-home") as HTMLButtonElement }
@@ -219,6 +220,19 @@ class UiController(
 
         // In-game menu
         btnMenuResume.addEventListener("click", { SoundFx.click(); hide(overlayMenu) })
+        btnMenuShare.addEventListener("click", {
+            SoundFx.click()
+            val saved = game.currentSavedGame()
+            if (saved == null) {
+                btnMenuShare.textContent = "No game to share"
+            } else {
+                val url = SavedGameStore.buildShareUrl(saved)
+                copyToClipboard(url) { ok ->
+                    btnMenuShare.textContent = if (ok) "✓ Link copied" else "Copy failed"
+                }
+            }
+            window.setTimeout({ btnMenuShare.textContent = "Copy share link" }, 1500)
+        })
         btnMenuSettings.addEventListener("click", {
             SoundFx.click()
             lastSettingsBackTarget = overlayMenu
@@ -257,7 +271,14 @@ class UiController(
 
         // Show home; offer Resume if saved game exists
         if (SavedGameStore.hasSaved()) btnResume.style.display = ""
-        showHome()
+
+        // Auto-resume from #g=... share link if present (preferred over localStorage).
+        val shared = SavedGameStore.consumeFragment()
+        if (shared != null && game.resumeGame(shared)) {
+            hideAll()
+        } else {
+            showHome()
+        }
     }
 
     // ── Render loop (paused when nothing animating) ─────
@@ -423,4 +444,34 @@ private fun NodeList.asList(): List<Node> {
     val out = ArrayList<Node>(length)
     for (i in 0 until length) out.add(item(i)!!)
     return out
+}
+
+/** Best-effort clipboard write that falls back to a hidden `<textarea>` + `document.execCommand`. */
+private fun copyToClipboard(text: String, callback: (Boolean) -> Unit) {
+    try {
+        val nav = kotlinx.browser.window.navigator.asDynamic()
+        val cb = nav.clipboard
+        if (cb != null) {
+            val promise = cb.writeText(text)
+            promise.then({ callback(true) }, { _: Any? -> fallbackCopy(text, callback) })
+            return
+        }
+    } catch (_: Throwable) { /* fall through */ }
+    fallbackCopy(text, callback)
+}
+
+private fun fallbackCopy(text: String, callback: (Boolean) -> Unit) {
+    try {
+        val ta = kotlinx.browser.document.createElement("textarea") as HTMLTextAreaElement
+        ta.value = text
+        ta.style.position = "fixed"
+        ta.style.opacity = "0"
+        kotlinx.browser.document.body?.appendChild(ta)
+        ta.select()
+        val ok = kotlinx.browser.document.asDynamic().execCommand("copy") as? Boolean ?: false
+        kotlinx.browser.document.body?.removeChild(ta)
+        callback(ok)
+    } catch (_: Throwable) {
+        callback(false)
+    }
 }
