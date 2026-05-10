@@ -39,23 +39,23 @@ class GameViewModel {
     fun closeSetup() { _showSetup.value = false }
 
     private var session: LocalGameSession? = null
-    private var aiPlayer: AiPlayer? = null
-    private var playerBType: PlayerType = PlayerType.HUMAN
+    /** Per-seat AI driver. HUMAN seats map to null. */
+    private var aiBySeat: Map<Player, AiPlayer?> = emptyMap()
+    /** Per-seat type, kept so we can persist + rebuild the AI on resume. */
+    private var typeBySeat: Map<Player, PlayerType> = emptyMap()
     private var lastConfig: GameConfig? = null
-    private var lastBType: PlayerType = PlayerType.HUMAN
 
     /** Replayed moves of the live game — kept in sync to persist after each turn. */
     private val appliedMoves = mutableListOf<Move>()
 
     fun hasSavedGame(): Boolean = SavedGameStore.hasSaved()
 
-    fun startGame(config: GameConfig, pBType: PlayerType) {
+    fun startGame(config: GameConfig, types: Map<Player, PlayerType>) {
         session?.close()
         lastConfig = config
-        lastBType = pBType
-        playerBType = pBType
+        typeBySeat = config.seats.associateWith { (types[it] ?: PlayerType.HUMAN) }
         session = GameSessionFactory.createLocal(config)
-        aiPlayer = buildAi(pBType, config)
+        aiBySeat = typeBySeat.mapValues { (_, t) -> buildAi(t, config) }
         appliedMoves.clear()
         SavedGameStore.clear()
         _gameState.value = session!!.stateFlow.value
@@ -72,10 +72,14 @@ class GameViewModel {
         return try {
             session?.close()
             lastConfig = saved.config
-            lastBType = saved.playerBType
-            playerBType = saved.playerBType
+            typeBySeat = mapOf(
+                Player.A to saved.playerAType,
+                Player.B to saved.playerBType,
+                Player.C to saved.playerCType,
+                Player.D to saved.playerDType
+            ).filterKeys { it in saved.config.seats }
             session = GameSessionFactory.createLocal(saved.config)
-            aiPlayer = buildAi(saved.playerBType, saved.config)
+            aiBySeat = typeBySeat.mapValues { (_, t) -> buildAi(t, saved.config) }
             appliedMoves.clear()
 
             scope.launch {
@@ -143,14 +147,14 @@ class GameViewModel {
     fun canUndo(): Boolean = session?.canUndo() ?: false
 
     private fun isAiTurn(player: Player): Boolean =
-        player == Player.B && playerBType != PlayerType.HUMAN
+        (typeBySeat[player] ?: PlayerType.HUMAN) != PlayerType.HUMAN
 
     private fun scheduleAiTurn() {
-        val ai = aiPlayer ?: return
         val s = session ?: return
+        val state = s.stateFlow.value
+        val ai = aiBySeat[state.currentPlayer] ?: return
         scope.launch {
             _isAiThinking.value = true
-            val state = s.stateFlow.value
             val coord = ai.selectMove(state)
             val move = Move.PlaceDot(coord, state.currentPlayer, state.moveCount + 1)
             val result = s.submitMove(move)
@@ -174,8 +178,10 @@ class GameViewModel {
         SavedGameStore.save(
             SavedGame(
                 config = cfg,
-                playerAType = PlayerType.HUMAN,
-                playerBType = lastBType,
+                playerAType = typeBySeat[Player.A] ?: PlayerType.HUMAN,
+                playerBType = typeBySeat[Player.B] ?: PlayerType.HUMAN,
+                playerCType = typeBySeat[Player.C] ?: PlayerType.HUMAN,
+                playerDType = typeBySeat[Player.D] ?: PlayerType.HUMAN,
                 moves = appliedMoves.toList()
             )
         )

@@ -81,10 +81,10 @@ fun GameWindow(viewModel: GameViewModel) {
                 SetupDialog(
                     showResume = viewModel.hasSavedGame() ||
                                  (gameState != null && gameState?.isGameOver == false),
-                    onStart    = { config, pBType ->
+                    onStart    = { config, types ->
                         viewModel.closeSetup()
                         showResult = false
-                        viewModel.startGame(config, pBType)
+                        viewModel.startGame(config, types)
                     },
                     onResume   = {
                         // If a fresh launch with a save on disk, load it.
@@ -127,12 +127,23 @@ fun HudBar(
         verticalAlignment    = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        ScorePanel(
-            label  = "Blue",
-            score  = gameState?.score?.playerA ?: 0,
-            color  = AppColors.PlayerA,
-            active = gameState?.let { it.currentPlayer == Player.A && !it.isGameOver } ?: false
-        )
+        // Left score panels: Players A and (in 4-player) C
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            ScorePanel(
+                label  = "Blue",
+                score  = gameState?.score?.playerA ?: 0,
+                color  = AppColors.PlayerA,
+                active = gameState?.let { it.currentPlayer == Player.A && !it.isGameOver } ?: false
+            )
+            if ((gameState?.players?.size ?: 0) >= 3) {
+                ScorePanel(
+                    label  = "Green",
+                    score  = gameState?.score?.playerC ?: 0,
+                    color  = AppColors.PlayerC,
+                    active = gameState?.let { it.currentPlayer == Player.C && !it.isGameOver } ?: false
+                )
+            }
+        }
 
         // Centre: menu / turn label / undo / surrender
         Row(
@@ -143,18 +154,20 @@ fun HudBar(
                 Text("☰", color = AppColors.OnSurface, style = MaterialTheme.typography.titleMedium)
             }
 
+            val seatLabel = mapOf(
+                Player.A to "Blue", Player.B to "Red",
+                Player.C to "Green", Player.D to "Yellow"
+            )
             val turnText = when {
                 gameState == null           -> "Start a game"
                 gameState.isGameOver        -> "Game Over"
                 isAiThinking                -> "AI thinking…"
-                gameState.currentPlayer == Player.A -> "Blue's turn"
-                else                        -> "Red's turn"
+                else -> "${seatLabel[gameState.currentPlayer] ?: ""}'s turn"
             }
             val turnColor = when {
                 gameState == null || gameState.isGameOver -> AppColors.OnSurfaceDim
                 isAiThinking                              -> AppColors.OnSurfaceDim
-                gameState.currentPlayer == Player.A       -> AppColors.PlayerA
-                else                                      -> AppColors.PlayerB
+                else -> AppColors.forPlayer(gameState.currentPlayer)
             }
             Text(
                 text     = turnText,
@@ -175,12 +188,23 @@ fun HudBar(
             }
         }
 
-        ScorePanel(
-            label  = "Red",
-            score  = gameState?.score?.playerB ?: 0,
-            color  = AppColors.PlayerB,
-            active = gameState?.let { it.currentPlayer == Player.B && !it.isGameOver } ?: false
-        )
+        // Right score panels: Players B and (in 4-player) D
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            ScorePanel(
+                label  = "Red",
+                score  = gameState?.score?.playerB ?: 0,
+                color  = AppColors.PlayerB,
+                active = gameState?.let { it.currentPlayer == Player.B && !it.isGameOver } ?: false
+            )
+            if ((gameState?.players?.size ?: 0) >= 4) {
+                ScorePanel(
+                    label  = "Yellow",
+                    score  = gameState?.score?.playerD ?: 0,
+                    color  = AppColors.PlayerD,
+                    active = gameState?.let { it.currentPlayer == Player.D && !it.isGameOver } ?: false
+                )
+            }
+        }
     }
 }
 
@@ -223,11 +247,16 @@ fun ResultOverlay(
                 Text("Game Over", style = MaterialTheme.typography.headlineMedium)
 
                 val resultText = gameState?.let { s ->
-                    when (s.winner) {
-                        Player.A -> "🔵 Blue wins!\n${s.score.playerA} – ${s.score.playerB}"
-                        Player.B -> "🔴 Red wins!\n${s.score.playerB} – ${s.score.playerA}"
-                        else     -> "Draw!\n${s.score.playerA} – ${s.score.playerB}"
+                    val seatLabel = mapOf(
+                        Player.A to "🔵 Blue", Player.B to "🔴 Red",
+                        Player.C to "🟢 Green", Player.D to "🟡 Yellow"
+                    )
+                    val scores = s.players.joinToString(" – ") { p ->
+                        s.score.forPlayer(p).toString()
                     }
+                    val winnerLabel = seatLabel[s.winner]
+                    if (winnerLabel != null) "$winnerLabel wins!\n$scores"
+                    else "Draw!\n$scores"
                 } ?: ""
                 Text(resultText, style = MaterialTheme.typography.bodyLarge)
 

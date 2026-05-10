@@ -37,12 +37,16 @@ import territories.engine.model.ScoringVariant
 @Composable
 fun SetupDialog(
     showResume: Boolean = false,
-    onStart: (GameConfig, PlayerType) -> Unit,
+    onStart: (GameConfig, Map<Player, PlayerType>) -> Unit,
     onResume: () -> Unit = {}
 ) {
     var boardSize   by remember { mutableStateOf("medium") }
     var scoring     by remember { mutableStateOf("territory") }
-    var opponent    by remember { mutableStateOf("medium") }
+    var playerCount by remember { mutableStateOf(2) }
+    var typeA       by remember { mutableStateOf("human") }
+    var typeB       by remember { mutableStateOf("medium") }
+    var typeC       by remember { mutableStateOf("human") }
+    var typeD       by remember { mutableStateOf("human") }
     var firstPlayer by remember { mutableStateOf("a") }
 
     Box(
@@ -50,10 +54,10 @@ fun SetupDialog(
         contentAlignment = Alignment.Center
     ) {
         MaterialTheme(colorScheme = darkColorScheme()) {
-            Card(modifier = Modifier.width(400.dp)) {
+            Card(modifier = Modifier.width(420.dp)) {
                 Column(
                     modifier = Modifier.padding(32.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
                         "Territories",
@@ -82,32 +86,52 @@ fun SetupDialog(
                     ) { scoring = it }
 
                     SetupSelect(
-                        label = "Opponent",
-                        selected = opponent,
+                        label = "Players",
+                        selected = playerCount.toString(),
                         options = listOf(
-                            "human"  to "Human (pass-and-play)",
-                            "easy"   to "AI – Easy",
-                            "medium" to "AI – Medium",
-                            "hard"   to "AI – Hard"
+                            "2" to "2 — head-to-head",
+                            "3" to "3 — free-for-all",
+                            "4" to "4 — free-for-all"
                         )
-                    ) { opponent = it }
+                    ) { playerCount = it.toInt() }
+
+                    // For 2-player keep the original "Opponent" label and let
+                    // Player A default to Human; for FFA expose all seats.
+                    if (playerCount == 2) {
+                        SetupSelect(
+                            label = "Opponent (Red)",
+                            selected = typeB,
+                            options = opponentOptions(includeAi = true)
+                        ) { typeB = it }
+                    } else {
+                        SeatRow("Player A (Blue)", typeA, includeAi = false) { typeA = it }
+                        SeatRow("Player B (Red)", typeB, includeAi = false) { typeB = it }
+                        SeatRow("Player C (Green)", typeC, includeAi = false) { typeC = it }
+                        if (playerCount == 4) {
+                            SeatRow("Player D (Yellow)", typeD, includeAi = false) { typeD = it }
+                        }
+                        Text(
+                            "FFA mode currently supports Human or Easy-AI seats. " +
+                                "Medium / Hard AI for free-for-all is in progress.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
 
                     SetupSelect(
                         label = "First Player",
                         selected = firstPlayer,
-                        options = listOf(
-                            "a"      to "Player A (Blue)",
-                            "b"      to "Player B (Red)",
-                            "random" to "Random"
-                        )
+                        options = firstPlayerOptions(playerCount)
                     ) { firstPlayer = it }
 
                     Button(
                         onClick = {
-                            onStart(
-                                buildConfig(boardSize, scoring, firstPlayer),
-                                parseOpponent(opponent)
+                            val cfg = buildConfig(
+                                boardSize, scoring, firstPlayer, playerCount,
+                                typeA, typeB, typeC, typeD
                             )
+                            val types = buildTypes(playerCount, typeA, typeB, typeC, typeD)
+                            onStart(cfg, types)
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) { Text("Start Game") }
@@ -127,6 +151,48 @@ fun SetupDialog(
             }
         }
     }
+}
+
+@Composable
+private fun SeatRow(
+    label: String,
+    selected: String,
+    includeAi: Boolean,
+    onSelect: (String) -> Unit
+) {
+    SetupSelect(
+        label = label,
+        selected = selected,
+        options = opponentOptions(includeAi = includeAi),
+        onSelect = onSelect
+    )
+}
+
+private fun opponentOptions(includeAi: Boolean): List<Pair<String, String>> =
+    if (includeAi) {
+        listOf(
+            "human"  to "Human (pass-and-play)",
+            "easy"   to "AI – Easy",
+            "medium" to "AI – Medium",
+            "hard"   to "AI – Hard"
+        )
+    } else {
+        // FFA mode: Medium and Hard are not yet supported beyond 2 seats.
+        listOf(
+            "human" to "Human (pass-and-play)",
+            "easy"  to "AI – Easy"
+        )
+    }
+
+private fun firstPlayerOptions(playerCount: Int): List<Pair<String, String>> {
+    val base = mutableListOf(
+        "a" to "Player A (Blue)",
+        "b" to "Player B (Red)"
+    )
+    if (playerCount >= 3) base += "c" to "Player C (Green)"
+    if (playerCount >= 4) base += "d" to "Player D (Yellow)"
+    base += "random" to "Random"
+    return base
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -162,24 +228,58 @@ private fun SetupSelect(
     }
 }
 
-private fun buildConfig(boardSize: String, scoring: String, firstPlayer: String): GameConfig {
+private fun buildConfig(
+    boardSize: String,
+    scoring: String,
+    firstPlayer: String,
+    playerCount: Int,
+    typeA: String,
+    typeB: String,
+    typeC: String,
+    typeD: String
+): GameConfig {
     val preset = when (boardSize) {
         "small" -> GameConfig.SMALL
         "large" -> GameConfig.LARGE
         else    -> GameConfig.MEDIUM
     }
     val variant = if (scoring == "captured") ScoringVariant.CAPTURED_DOTS else ScoringVariant.TERRITORY_AREA
+    val seats = listOf(Player.A, Player.B, Player.C, Player.D).take(playerCount)
     val fp = when (firstPlayer) {
         "b"      -> Player.B
-        "random" -> if ((0..1).random() == 0) Player.A else Player.B
+        "c"      -> if (Player.C in seats) Player.C else Player.A
+        "d"      -> if (Player.D in seats) Player.D else Player.A
+        "random" -> seats.random()
         else     -> Player.A
     }
-    return preset.copy(scoringVariant = variant, firstPlayer = fp)
+    return preset.copy(
+        scoringVariant = variant,
+        firstPlayer = fp,
+        playerCount = playerCount,
+        playerAType = parseOpponent(typeA),
+        playerBType = parseOpponent(typeB),
+        playerCType = parseOpponent(typeC),
+        playerDType = parseOpponent(typeD)
+    )
+}
+
+private fun buildTypes(
+    playerCount: Int,
+    typeA: String, typeB: String, typeC: String, typeD: String
+): Map<Player, PlayerType> {
+    val m = mutableMapOf<Player, PlayerType>(
+        Player.A to parseOpponent(typeA),
+        Player.B to parseOpponent(typeB)
+    )
+    if (playerCount >= 3) m[Player.C] = parseOpponent(typeC)
+    if (playerCount >= 4) m[Player.D] = parseOpponent(typeD)
+    return m
 }
 
 private fun parseOpponent(value: String): PlayerType = when (value) {
     "easy"  -> PlayerType.AI_EASY
     "hard"  -> PlayerType.AI_HARD
     "human" -> PlayerType.HUMAN
-    else    -> PlayerType.AI_MEDIUM
+    "medium"-> PlayerType.AI_MEDIUM
+    else    -> PlayerType.HUMAN
 }

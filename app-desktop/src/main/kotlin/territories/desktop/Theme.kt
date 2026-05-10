@@ -13,6 +13,37 @@ object AppColors {
     val PlayerB          = Color(P.playerB)
     val PlayerBHighlight = Color(P.playerBHighlight)
     val PlayerBTerritory = Color(P.playerBTerritory)
+    val PlayerC          = Color(P.playerC)
+    val PlayerCHighlight = Color(P.playerCHighlight)
+    val PlayerCTerritory = Color(P.playerCTerritory)
+    val PlayerD          = Color(P.playerD)
+    val PlayerDHighlight = Color(P.playerDHighlight)
+    val PlayerDTerritory = Color(P.playerDTerritory)
+
+    /** Color for a seat's stones. NONE returns a neutral on-surface color. */
+    fun forPlayer(p: territories.engine.model.Player): Color = when (p) {
+        territories.engine.model.Player.A -> PlayerA
+        territories.engine.model.Player.B -> PlayerB
+        territories.engine.model.Player.C -> PlayerC
+        territories.engine.model.Player.D -> PlayerD
+        territories.engine.model.Player.NONE -> OnSurface
+    }
+
+    fun highlightFor(p: territories.engine.model.Player): Color = when (p) {
+        territories.engine.model.Player.A -> PlayerAHighlight
+        territories.engine.model.Player.B -> PlayerBHighlight
+        territories.engine.model.Player.C -> PlayerCHighlight
+        territories.engine.model.Player.D -> PlayerDHighlight
+        territories.engine.model.Player.NONE -> OnSurface
+    }
+
+    fun territoryFor(p: territories.engine.model.Player): Color = when (p) {
+        territories.engine.model.Player.A -> PlayerATerritory
+        territories.engine.model.Player.B -> PlayerBTerritory
+        territories.engine.model.Player.C -> PlayerCTerritory
+        territories.engine.model.Player.D -> PlayerDTerritory
+        territories.engine.model.Player.NONE -> OnSurface
+    }
 
     // Board surface (dark theme for desktop)
     val GridMinor        = Color(P.gridMinor)

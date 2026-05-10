@@ -19,7 +19,9 @@ data class SavedGame(
     val config: GameConfig,
     val playerAType: PlayerType,
     val playerBType: PlayerType,
-    val moves: List<Move>
+    val moves: List<Move>,
+    val playerCType: PlayerType = PlayerType.HUMAN,
+    val playerDType: PlayerType = PlayerType.HUMAN
 )
 
 object SavedGameStore {

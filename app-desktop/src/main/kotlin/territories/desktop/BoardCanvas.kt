@@ -108,7 +108,7 @@ fun BoardCanvas(
         for (coord in board.allCoords()) {
             val cell = board.get(coord)
             if (cell.territory != Player.NONE) {
-                val base = if (cell.territory == Player.A) AppColors.PlayerATerritory else AppColors.PlayerBTerritory
+                val base = AppColors.territoryFor(cell.territory)
                 drawRect(
                     color   = base.copy(alpha = base.alpha * territoryAlpha.value),
                     topLeft = Offset(ox + coord.col * cs - cs / 2f, oy + coord.row * cs - cs / 2f),
@@ -148,8 +148,8 @@ fun BoardCanvas(
                 val cx = ox + coord.col * cs
                 val cy = oy + coord.row * cs
                 drawCircle(AppColors.DotShadow, radius = r, center = Offset(cx + 1.5f, cy + 2f))
-                val baseColor = if (cell.dot == Player.A) AppColors.PlayerA else AppColors.PlayerB
-                val highlight = if (cell.dot == Player.A) AppColors.PlayerAHighlight else AppColors.PlayerBHighlight
+                val baseColor = AppColors.forPlayer(cell.dot)
+                val highlight = AppColors.highlightFor(cell.dot)
                 drawCircle(
                     brush = Brush.radialGradient(
                         colors = listOf(highlight, baseColor),
