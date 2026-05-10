@@ -91,26 +91,59 @@ fun SetupScreen(
                 )
             }
 
-            SettingSection(label = "Opponent") {
+            SettingSection(label = "Players") {
                 ChoiceGrid(
                     options = listOf(
-                        Choice("Human",   "Pass and play",         "human"),
-                        Choice("AI Easy", "Random legal moves",    "easy"),
-                        Choice("AI Med",  "Looks 1 move ahead",    "medium"),
-                        Choice("AI Hard", "Looks several ahead",   "hard"),
+                        Choice("2", "Head-to-head", "2"),
+                        Choice("3", "Free-for-all", "3"),
+                        Choice("4", "Free-for-all", "4"),
                     ),
-                    selected = vm.opponent,
-                    onSelect = { vm.opponent = it }
+                    selected = vm.players,
+                    onSelect = { vm.players = it }
                 )
             }
 
+            if (vm.players == "2") {
+                SettingSection(label = "Opponent") {
+                    ChoiceGrid(
+                        options = listOf(
+                            Choice("Human",   "Pass and play",         "human"),
+                            Choice("AI Easy", "Random legal moves",    "easy"),
+                            Choice("AI Med",  "Looks 1 move ahead",    "medium"),
+                            Choice("AI Hard", "Looks several ahead",   "hard"),
+                        ),
+                        selected = vm.opponent,
+                        onSelect = { vm.opponent = it }
+                    )
+                }
+            } else {
+                SettingSection(
+                    label = "Seats",
+                    description = "Medium / Hard AI for free-for-all is in progress"
+                ) {
+                    SeatRow("Blue",   vm.seatA) { vm.seatA = it }
+                    Spacer(Modifier.height(8.dp))
+                    SeatRow("Red",    vm.seatB) { vm.seatB = it }
+                    Spacer(Modifier.height(8.dp))
+                    SeatRow("Green",  vm.seatC) { vm.seatC = it }
+                    if (vm.players == "4") {
+                        Spacer(Modifier.height(8.dp))
+                        SeatRow("Yellow", vm.seatD) { vm.seatD = it }
+                    }
+                }
+            }
+
             SettingSection(label = "First Player") {
+                val firstOptions = mutableListOf(
+                    Choice("Blue",   "Starts (A)",    "a"),
+                    Choice("Red",    "Starts (B)",    "b"),
+                )
+                val count = vm.players.toIntOrNull() ?: 2
+                if (count >= 3) firstOptions.add(Choice("Green",  "Starts (C)",    "c"))
+                if (count >= 4) firstOptions.add(Choice("Yellow", "Starts (D)",    "d"))
+                firstOptions.add(Choice("Random", "Pick a seat",   "random"))
                 ChoiceGrid(
-                    options  = listOf(
-                        Choice("Blue",   "Starts (A)",    "a"),
-                        Choice("Red",    "Starts (B)",    "b"),
-                        Choice("Random", "Coin flip",     "random"),
-                    ),
+                    options  = firstOptions,
                     selected = vm.firstPlayer,
                     onSelect = { vm.firstPlayer = it }
                 )
@@ -228,5 +261,40 @@ private fun ChoiceCard(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
         )
+    }
+}
+
+@Composable
+private fun SeatRow(
+    seatLabel: String,
+    selected:  String,
+    onSelect:  (String) -> Unit
+) {
+    Row(
+        modifier            = Modifier.fillMaxWidth(),
+        verticalAlignment   = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text(
+            text       = seatLabel.uppercase(),
+            style      = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            color      = MaterialTheme.colorScheme.primary,
+            modifier   = Modifier.padding(end = 4.dp)
+        )
+        Box(modifier = Modifier.weight(1f)) {
+            ChoiceCard(
+                choice     = Choice("Human", "Pass and play", "human"),
+                isSelected = selected == "human",
+                onClick    = { onSelect("human") }
+            )
+        }
+        Box(modifier = Modifier.weight(1f)) {
+            ChoiceCard(
+                choice     = Choice("AI Easy", "Random legal", "easy"),
+                isSelected = selected == "easy",
+                onClick    = { onSelect("easy") }
+            )
+        }
     }
 }

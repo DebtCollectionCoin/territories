@@ -11,9 +11,11 @@ data class GameEntity(
     val startedAt: Long,
     val finishedAt: Long?,
     val configJson: String,        // kotlinx.serialization JSON of GameConfig
-    val winner: String,            // "A", "B", or "NONE" (draw / in-progress)
+    val winner: String,            // "A", "B", "C", "D", or "NONE" (draw / in-progress)
     val finalScoreA: Int,
     val finalScoreB: Int,
+    val finalScoreC: Int = 0,
+    val finalScoreD: Int = 0,
     val totalMoves: Int
 )
 

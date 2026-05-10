@@ -33,6 +33,8 @@ class GameRepository @Inject constructor(
                 winner      = "NONE",
                 finalScoreA = 0,
                 finalScoreB = 0,
+                finalScoreC = 0,
+                finalScoreD = 0,
                 totalMoves  = 0
             )
         )
@@ -74,6 +76,8 @@ class GameRepository @Inject constructor(
                 winner      = state.winner.name,
                 finalScoreA = state.score.playerA,
                 finalScoreB = state.score.playerB,
+                finalScoreC = state.score.playerC,
+                finalScoreD = state.score.playerD,
                 totalMoves  = state.moveCount
             )
         )

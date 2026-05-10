@@ -47,13 +47,10 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import territories.engine.model.Player
 
-private val PlayerAColor = Color(0xFF3949AB)
-private val PlayerBColor = Color(0xFFD84A4A)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GameScreen(
-    onGameOver:     (winner: String, scoreA: Int, scoreB: Int, moves: Int) -> Unit,
+    onGameOver:     (winner: String, scoreA: Int, scoreB: Int, scoreC: Int, scoreD: Int, moves: Int) -> Unit,
     onNavigateHome: () -> Unit,
     vm: GameViewModel = hiltViewModel()
 ) {
@@ -76,9 +73,11 @@ fun GameScreen(
             val winner = when (state.winner) {
                 Player.A -> "Blue"
                 Player.B -> "Red"
+                Player.C -> "Green"
+                Player.D -> "Yellow"
                 else     -> "Draw"
             }
-            onGameOver(winner, state.score.playerA, state.score.playerB, state.moveCount)
+            onGameOver(winner, state.score.playerA, state.score.playerB, state.score.playerC, state.score.playerD, state.moveCount)
         }
     }
 
@@ -98,11 +97,27 @@ fun GameScreen(
                         color  = PlayerAColor,
                         active = state.currentPlayer == Player.A && !state.isGameOver
                     )
+                    if (state.players.size >= 3) {
+                        PlayerScore(
+                            label  = "Green",
+                            score  = state.score.playerC,
+                            color  = PlayerCColor,
+                            active = state.currentPlayer == Player.C && !state.isGameOver
+                        )
+                    }
                     TurnIndicator(
                         currentPlayer = state.currentPlayer,
                         isAiThinking  = isAiThinking,
                         isGameOver    = state.isGameOver
                     )
+                    if (state.players.size >= 4) {
+                        PlayerScore(
+                            label  = "Yellow",
+                            score  = state.score.playerD,
+                            color  = PlayerDColor,
+                            active = state.currentPlayer == Player.D && !state.isGameOver
+                        )
+                    }
                     PlayerScore(
                         label  = "Red",
                         score  = state.score.playerB,
@@ -249,12 +264,17 @@ private fun TurnIndicator(currentPlayer: Player, isAiThinking: Boolean, isGameOv
         isGameOver    -> "Game Over"
         isAiThinking  -> "AI thinking…"
         currentPlayer == Player.A -> "Blue's turn"
-        else -> "Red's turn"
+        currentPlayer == Player.B -> "Red's turn"
+        currentPlayer == Player.C -> "Green's turn"
+        currentPlayer == Player.D -> "Yellow's turn"
+        else -> "—"
     }
     val color = when {
         isGameOver -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
         currentPlayer == Player.A && !isAiThinking -> PlayerAColor
         currentPlayer == Player.B && !isAiThinking -> PlayerBColor
+        currentPlayer == Player.C && !isAiThinking -> PlayerCColor
+        currentPlayer == Player.D && !isAiThinking -> PlayerDColor
         else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
     }
     Text(

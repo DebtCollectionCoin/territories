@@ -23,6 +23,11 @@ private val KEY_BOARD_SIZE   = stringPreferencesKey("board_size")
 private val KEY_SCORING      = stringPreferencesKey("scoring")
 private val KEY_OPPONENT     = stringPreferencesKey("opponent")
 private val KEY_FIRST_PLAYER = stringPreferencesKey("first_player")
+private val KEY_PLAYERS      = stringPreferencesKey("players")
+private val KEY_SEAT_A       = stringPreferencesKey("seat_a")
+private val KEY_SEAT_B       = stringPreferencesKey("seat_b")
+private val KEY_SEAT_C       = stringPreferencesKey("seat_c")
+private val KEY_SEAT_D       = stringPreferencesKey("seat_d")
 
 @HiltViewModel
 class SetupViewModel @Inject constructor(
@@ -34,6 +39,11 @@ class SetupViewModel @Inject constructor(
     var scoring     by mutableStateOf("territory")
     var opponent    by mutableStateOf("medium")
     var firstPlayer by mutableStateOf("a")
+    var players     by mutableStateOf("2")
+    var seatA       by mutableStateOf("human")
+    var seatB       by mutableStateOf("human")
+    var seatC       by mutableStateOf("human")
+    var seatD       by mutableStateOf("human")
 
     init {
         viewModelScope.launch {
@@ -42,6 +52,11 @@ class SetupViewModel @Inject constructor(
             scoring     = prefs[KEY_SCORING]      ?: "territory"
             opponent    = prefs[KEY_OPPONENT]     ?: "medium"
             firstPlayer = prefs[KEY_FIRST_PLAYER] ?: "a"
+            players     = prefs[KEY_PLAYERS]      ?: "2"
+            seatA       = prefs[KEY_SEAT_A]       ?: "human"
+            seatB       = prefs[KEY_SEAT_B]       ?: "human"
+            seatC       = prefs[KEY_SEAT_C]       ?: "human"
+            seatD       = prefs[KEY_SEAT_D]       ?: "human"
         }
     }
 
@@ -54,15 +69,26 @@ class SetupViewModel @Inject constructor(
         val scoringVariant = if (scoring == "territory")
             ScoringVariant.TERRITORY_AREA else ScoringVariant.CAPTURED_DOTS
 
-        val playerBType = when (opponent) {
-            "easy"  -> PlayerType.AI_EASY
-            "hard"  -> PlayerType.AI_HARD
-            "human" -> PlayerType.HUMAN
-            else    -> PlayerType.AI_MEDIUM
+        val playerCount = players.toIntOrNull()?.coerceIn(2, 4) ?: 2
+        val seats = listOf(Player.A, Player.B, Player.C, Player.D).take(playerCount)
+
+        val (aType, bType, cType, dType) = if (playerCount == 2) {
+            val bt = when (opponent) {
+                "easy"  -> PlayerType.AI_EASY
+                "hard"  -> PlayerType.AI_HARD
+                "human" -> PlayerType.HUMAN
+                else    -> PlayerType.AI_MEDIUM
+            }
+            arrayOf(PlayerType.HUMAN, bt, PlayerType.HUMAN, PlayerType.HUMAN)
+        } else {
+            arrayOf(parseSeat(seatA), parseSeat(seatB), parseSeat(seatC), parseSeat(seatD))
         }
+
         val fp = when (firstPlayer) {
             "b"      -> Player.B
-            "random" -> if ((0..1).random() == 0) Player.A else Player.B
+            "c"      -> if (Player.C in seats) Player.C else Player.A
+            "d"      -> if (Player.D in seats) Player.D else Player.A
+            "random" -> seats.random()
             else     -> Player.A
         }
         configHolder.current = GameConfig(
@@ -70,8 +96,11 @@ class SetupViewModel @Inject constructor(
             rows          = rows,
             scoringVariant = scoringVariant,
             firstPlayer   = fp,
-            playerAType   = PlayerType.HUMAN,
-            playerBType   = playerBType
+            playerCount   = playerCount,
+            playerAType   = aType,
+            playerBType   = bType,
+            playerCType   = cType,
+            playerDType   = dType
         )
 
         // Persist choices (fire and forget)
@@ -81,7 +110,17 @@ class SetupViewModel @Inject constructor(
                 prefs[KEY_SCORING]      = scoring
                 prefs[KEY_OPPONENT]     = opponent
                 prefs[KEY_FIRST_PLAYER] = firstPlayer
+                prefs[KEY_PLAYERS]      = players
+                prefs[KEY_SEAT_A]       = seatA
+                prefs[KEY_SEAT_B]       = seatB
+                prefs[KEY_SEAT_C]       = seatC
+                prefs[KEY_SEAT_D]       = seatD
             }
         }
+    }
+
+    private fun parseSeat(value: String): PlayerType = when (value) {
+        "easy" -> PlayerType.AI_EASY
+        else   -> PlayerType.HUMAN  // FFA restricts Medium/Hard for now
     }
 }

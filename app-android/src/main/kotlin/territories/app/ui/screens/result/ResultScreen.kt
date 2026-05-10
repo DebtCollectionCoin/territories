@@ -34,28 +34,33 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import territories.app.ui.screens.game.PlayerAColor
+import territories.app.ui.screens.game.PlayerBColor
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
 
-private val PlayerAColor = Color(0xFF3949AB)
-private val PlayerBColor = Color(0xFFD84A4A)
+
 
 @Composable
 fun ResultScreen(
     winner:      String,
     scoreA:      Int,
     scoreB:      Int,
+    scoreC:      Int = 0,
+    scoreD:      Int = 0,
     moves:       Int,
     onPlayAgain: () -> Unit,
     onNewGame:   () -> Unit,
     onHome:      () -> Unit
 ) {
     val winnerColor = when (winner) {
-        "Blue" -> PlayerAColor
-        "Red"  -> PlayerBColor
-        else   -> MaterialTheme.colorScheme.onBackground
+        "Blue"   -> PlayerAColor
+        "Red"    -> PlayerBColor
+        "Green"  -> territories.app.ui.screens.game.PlayerCColor
+        "Yellow" -> territories.app.ui.screens.game.PlayerDColor
+        else     -> MaterialTheme.colorScheme.onBackground
     }
 
     Scaffold { padding ->
@@ -103,6 +108,18 @@ fun ResultScreen(
                 ScoreRow(label = "Blue", score = scoreA, color = PlayerAColor, isWinner = winner == "Blue")
                 Spacer(Modifier.height(8.dp))
                 ScoreRow(label = "Red",  score = scoreB, color = PlayerBColor, isWinner = winner == "Red")
+                if (scoreC > 0 || scoreD > 0) {
+                    Spacer(Modifier.height(8.dp))
+                    ScoreRow(label = "Green",  score = scoreC,
+                        color = territories.app.ui.screens.game.PlayerCColor,
+                        isWinner = winner == "Green")
+                    if (scoreD > 0) {
+                        Spacer(Modifier.height(8.dp))
+                        ScoreRow(label = "Yellow", score = scoreD,
+                            color = territories.app.ui.screens.game.PlayerDColor,
+                            isWinner = winner == "Yellow")
+                    }
+                }
 
                 Spacer(Modifier.height(20.dp))
                 Text(
@@ -219,19 +236,4 @@ private fun ConfettiBackdrop(primaryColor: Color) {
             }
         }
     }
-}
-
-private inline fun androidx.compose.ui.graphics.drawscope.DrawScope.rotate(
-    degrees: Float,
-    pivot: Offset,
-    block: androidx.compose.ui.graphics.drawscope.DrawScope.() -> Unit
-) {
-    withTransform({ rotate(degrees, pivot) }) { block() }
-}
-
-private inline fun androidx.compose.ui.graphics.drawscope.DrawScope.withTransform(
-    transformBlock: androidx.compose.ui.graphics.drawscope.DrawTransform.() -> Unit,
-    drawBlock: androidx.compose.ui.graphics.drawscope.DrawScope.() -> Unit
-) {
-    androidx.compose.ui.graphics.drawscope.withTransform(transformBlock, drawBlock)
 }

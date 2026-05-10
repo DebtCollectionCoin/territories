@@ -46,6 +46,36 @@ internal val PlayerATerritory      = Color(P.playerATerritory)
 internal val PlayerBColor          = Color(P.playerB)
 internal val PlayerBHighlight      = Color(P.playerBHighlight)
 internal val PlayerBTerritory      = Color(P.playerBTerritory)
+internal val PlayerCColor          = Color(P.playerC)
+internal val PlayerCHighlight      = Color(P.playerCHighlight)
+internal val PlayerCTerritory      = Color(P.playerCTerritory)
+internal val PlayerDColor          = Color(P.playerD)
+internal val PlayerDHighlight      = Color(P.playerDHighlight)
+internal val PlayerDTerritory      = Color(P.playerDTerritory)
+
+internal fun colorForPlayer(p: Player): Color = when (p) {
+    Player.A -> PlayerAColor
+    Player.B -> PlayerBColor
+    Player.C -> PlayerCColor
+    Player.D -> PlayerDColor
+    else     -> PlayerAColor
+}
+
+internal fun highlightForPlayer(p: Player): Color = when (p) {
+    Player.A -> PlayerAHighlight
+    Player.B -> PlayerBHighlight
+    Player.C -> PlayerCHighlight
+    Player.D -> PlayerDHighlight
+    else     -> PlayerAHighlight
+}
+
+internal fun territoryForPlayer(p: Player): Color = when (p) {
+    Player.A -> PlayerATerritory
+    Player.B -> PlayerBTerritory
+    Player.C -> PlayerCTerritory
+    Player.D -> PlayerDTerritory
+    else     -> PlayerATerritory
+}
 private val GridColorMinor         = Color(P.gridMinor)
 private val GridColorMajor         = Color(P.gridMajor)
 private val BoardBgTop             = Color(P.boardBgTop)
@@ -110,11 +140,7 @@ fun BoardCanvas(
         }
         prevTerritoryCount = territoryCount
     }
-    val rippleColor = when (state.lastMove?.let { board.get(it).dot }) {
-        Player.A -> PlayerAColor
-        Player.B -> PlayerBColor
-        else     -> PlayerAColor
-    }
+    val rippleColor = state.lastMove?.let { board.get(it).dot }?.let { colorForPlayer(it) } ?: PlayerAColor
 
     // Pulsing last-move ring
     val pulse = rememberInfiniteTransition(label = "pulse")
@@ -182,7 +208,7 @@ fun BoardCanvas(
         for (coord in board.allCoords()) {
             val cell = board.get(coord)
             if (cell.territory != Player.NONE) {
-                val base = if (cell.territory == Player.A) PlayerATerritory else PlayerBTerritory
+                val base = territoryForPlayer(cell.territory)
                 val color = base.copy(alpha = base.alpha * territoryAlpha.value)
                 drawRect(
                     color   = color,
@@ -226,8 +252,8 @@ fun BoardCanvas(
                 if (r <= 0f) continue
                 val cx = ox + coord.col * cs
                 val cy = oy + coord.row * cs
-                val baseColor = if (cell.dot == Player.A) PlayerAColor else PlayerBColor
-                val highlight = if (cell.dot == Player.A) PlayerAHighlight else PlayerBHighlight
+                val baseColor = colorForPlayer(cell.dot)
+                val highlight = highlightForPlayer(cell.dot)
                 val asSquare = colorBlindMode && cell.dot == Player.B
 
                 if (asSquare) {

@@ -36,7 +36,7 @@ class GameViewModel @Inject constructor(
 ) : ViewModel() {
 
     private lateinit var session: LocalGameSession
-    private var aiPlayer: AiPlayer? = null
+    private var aiBySeat: Map<Player, AiPlayer?> = emptyMap()
     private var currentGameId: String? = null
 
     private val _isAiThinking = MutableStateFlow(false)
@@ -71,7 +71,7 @@ class GameViewModel @Inject constructor(
         val config = configHolder.current
         if (::session.isInitialized) session.close()
         session = GameSessionFactory.createLocal(config)
-        aiPlayer = buildAiPlayer(config)
+        aiBySeat = buildAiBySeat(config)
         _isAiThinking.value = false
         _gameState.value = session.stateFlow.value
 
@@ -95,7 +95,7 @@ class GameViewModel @Inject constructor(
 
             if (::session.isInitialized) session.close()
             session = GameSessionFactory.createLocal(config)
-            aiPlayer = buildAiPlayer(config)
+            aiBySeat = buildAiBySeat(config)
             currentGameId = gameId
 
             // Replay all stored moves
@@ -159,16 +159,22 @@ class GameViewModel @Inject constructor(
 
     private fun isAiTurn(player: Player): Boolean {
         val config = configHolder.current
-        return (player == Player.A && config.playerAType != PlayerType.HUMAN) ||
-               (player == Player.B && config.playerBType != PlayerType.HUMAN)
+        val type = when (player) {
+            Player.A -> config.playerAType
+            Player.B -> config.playerBType
+            Player.C -> config.playerCType
+            Player.D -> config.playerDType
+            else     -> PlayerType.HUMAN
+        }
+        return type != PlayerType.HUMAN
     }
 
     private fun scheduleAiTurn() {
-        val ai = aiPlayer ?: return
         viewModelScope.launch(Dispatchers.Default) {
             _isAiThinking.value = true
             val state = session.stateFlow.value
-            if (!state.isGameOver) {
+            val ai = aiBySeat[state.currentPlayer]
+            if (ai != null && !state.isGameOver) {
                 val coord = ai.selectMove(state)
                 val move  = Move.PlaceDot(coord, state.currentPlayer, state.moveCount + 1)
                 session.submitMove(move)
@@ -188,13 +194,22 @@ class GameViewModel @Inject constructor(
         }
     }
 
-    private fun buildAiPlayer(config: GameConfig): AiPlayer? {
+    private fun buildAiBySeat(config: GameConfig): Map<Player, AiPlayer?> {
         val engine = GameEngine(config)
-        return when (config.playerBType) {
-            PlayerType.AI_EASY   -> EasyAiPlayer()
-            PlayerType.AI_MEDIUM -> MediumAiPlayer(engine)
-            PlayerType.AI_HARD   -> HardAiPlayer(engine)
-            PlayerType.HUMAN     -> null
+        return config.seats.associateWith { seat ->
+            val type = when (seat) {
+                Player.A -> config.playerAType
+                Player.B -> config.playerBType
+                Player.C -> config.playerCType
+                Player.D -> config.playerDType
+                else     -> PlayerType.HUMAN
+            }
+            when (type) {
+                PlayerType.AI_EASY   -> EasyAiPlayer()
+                PlayerType.AI_MEDIUM -> MediumAiPlayer(engine)
+                PlayerType.AI_HARD   -> HardAiPlayer(engine)
+                PlayerType.HUMAN     -> null
+            }
         }
     }
 

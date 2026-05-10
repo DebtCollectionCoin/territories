@@ -21,9 +21,9 @@ sealed class Screen(val route: String) {
     object HowToPlay : Screen("how_to_play")
     object History   : Screen("history")
     object Settings  : Screen("settings")
-    object Result    : Screen("result/{winner}/{scoreA}/{scoreB}/{moves}") {
-        fun withArgs(winner: String, scoreA: Int, scoreB: Int, moves: Int) =
-            "result/$winner/$scoreA/$scoreB/$moves"
+    object Result    : Screen("result/{winner}/{scoreA}/{scoreB}/{scoreC}/{scoreD}/{moves}") {
+        fun withArgs(winner: String, scoreA: Int, scoreB: Int, scoreC: Int, scoreD: Int, moves: Int) =
+            "result/$winner/$scoreA/$scoreB/$scoreC/$scoreD/$moves"
     }
 }
 
@@ -66,8 +66,8 @@ fun AppNavGraph() {
 
         composable(Screen.Game.route) {
             GameScreen(
-                onGameOver = { winner, scoreA, scoreB, moves ->
-                    nav.navigate(Screen.Result.withArgs(winner, scoreA, scoreB, moves)) {
+                onGameOver = { winner, scoreA, scoreB, scoreC, scoreD, moves ->
+                    nav.navigate(Screen.Result.withArgs(winner, scoreA, scoreB, scoreC, scoreD, moves)) {
                         popUpTo(Screen.Game.route) { inclusive = true }
                     }
                 },
@@ -85,17 +85,23 @@ fun AppNavGraph() {
                 navArgument("winner") { type = NavType.StringType },
                 navArgument("scoreA") { type = NavType.IntType },
                 navArgument("scoreB") { type = NavType.IntType },
+                navArgument("scoreC") { type = NavType.IntType },
+                navArgument("scoreD") { type = NavType.IntType },
                 navArgument("moves")  { type = NavType.IntType },
             )
         ) { back ->
             val winner = back.arguments?.getString("winner") ?: "Draw"
             val scoreA = back.arguments?.getInt("scoreA") ?: 0
             val scoreB = back.arguments?.getInt("scoreB") ?: 0
+            val scoreC = back.arguments?.getInt("scoreC") ?: 0
+            val scoreD = back.arguments?.getInt("scoreD") ?: 0
             val moves  = back.arguments?.getInt("moves")  ?: 0
             ResultScreen(
                 winner    = winner,
                 scoreA    = scoreA,
                 scoreB    = scoreB,
+                scoreC    = scoreC,
+                scoreD    = scoreD,
                 moves     = moves,
                 onPlayAgain = { nav.navigate(Screen.Game.route) {
                     popUpTo(Screen.Home.route)
