@@ -16,12 +16,20 @@
 <body>
     <div id="app">
         <header id="hud">
-            <div class="score-panel player-a">
+            <div class="score-panel player-a" id="hud-panel-a">
                 <span class="label">Blue</span>
                 <span class="value" id="score-a-val">0</span>
             </div>
+            <div class="score-panel player-c" id="hud-panel-c" style="display:none">
+                <span class="label">Green</span>
+                <span class="value" id="score-c-val">0</span>
+            </div>
             <div id="turn-label">—</div>
-            <div class="score-panel player-b">
+            <div class="score-panel player-d" id="hud-panel-d" style="display:none">
+                <span class="label">Yellow</span>
+                <span class="value" id="score-d-val">0</span>
+            </div>
+            <div class="score-panel player-b" id="hud-panel-b">
                 <span class="label">Red</span>
                 <span class="value" id="score-b-val">0</span>
             </div>
@@ -91,6 +99,14 @@
                     </div>
                 </section>
                 <section class="choice-section">
+                    <h3>Players</h3>
+                    <div class="choice-grid" data-group="players">
+                        <button class="choice selected" data-value="2"><b>2</b><span>Head-to-head</span></button>
+                        <button class="choice" data-value="3"><b>3</b><span>Free-for-all</span></button>
+                        <button class="choice" data-value="4"><b>4</b><span>Free-for-all</span></button>
+                    </div>
+                </section>
+                <section class="choice-section" id="opponent-section">
                     <h3>Opponent</h3>
                     <div class="choice-grid" data-group="opponent">
                         <button class="choice" data-value="human"><b>Human</b><span>Pass &amp; play</span></button>
@@ -99,12 +115,46 @@
                         <button class="choice" data-value="hard"><b>AI Hard</b><span>Several ahead</span></button>
                     </div>
                 </section>
+                <section class="choice-section ffa-section" id="ffa-section" style="display:none">
+                    <h3>Seats</h3>
+                    <div class="seat-row">
+                        <span class="seat-name player-a">Blue</span>
+                        <div class="choice-grid two-col seat-choice" data-group="seat-a">
+                            <button class="choice selected" data-value="human"><b>Human</b></button>
+                            <button class="choice" data-value="easy"><b>AI Easy</b></button>
+                        </div>
+                    </div>
+                    <div class="seat-row">
+                        <span class="seat-name player-b">Red</span>
+                        <div class="choice-grid two-col seat-choice" data-group="seat-b">
+                            <button class="choice selected" data-value="human"><b>Human</b></button>
+                            <button class="choice" data-value="easy"><b>AI Easy</b></button>
+                        </div>
+                    </div>
+                    <div class="seat-row">
+                        <span class="seat-name player-c">Green</span>
+                        <div class="choice-grid two-col seat-choice" data-group="seat-c">
+                            <button class="choice selected" data-value="human"><b>Human</b></button>
+                            <button class="choice" data-value="easy"><b>AI Easy</b></button>
+                        </div>
+                    </div>
+                    <div class="seat-row" id="seat-row-d" style="display:none">
+                        <span class="seat-name player-d">Yellow</span>
+                        <div class="choice-grid two-col seat-choice" data-group="seat-d">
+                            <button class="choice selected" data-value="human"><b>Human</b></button>
+                            <button class="choice" data-value="easy"><b>AI Easy</b></button>
+                        </div>
+                    </div>
+                    <p class="ffa-note">Medium / Hard AI for free-for-all is in progress.</p>
+                </section>
                 <section class="choice-section">
                     <h3>First Player</h3>
                     <div class="choice-grid" data-group="first">
                         <button class="choice selected" data-value="a"><b>Blue</b><span>Starts</span></button>
                         <button class="choice" data-value="b"><b>Red</b><span>Starts</span></button>
-                        <button class="choice" data-value="random"><b>Random</b><span>Coin flip</span></button>
+                        <button class="choice ffa-only" data-value="c" style="display:none"><b>Green</b><span>Starts</span></button>
+                        <button class="choice ffa-only-4" data-value="d" style="display:none"><b>Yellow</b><span>Starts</span></button>
+                        <button class="choice" data-value="random"><b>Random</b><span>Pick a seat</span></button>
                     </div>
                 </section>
             </div>
@@ -118,10 +168,11 @@
         <div class="dialog">
             <p class="result-eyebrow">Game Over</p>
             <h2 id="result-title" class="result-winner">—</h2>
-            <div class="result-scores">
+            <div class="result-scores" id="result-scores">
                 <div class="score-panel player-a"><span class="label">Blue</span><span class="value" id="result-score-a">0</span></div>
-                <div class="result-vs">vs</div>
                 <div class="score-panel player-b"><span class="label">Red</span><span class="value" id="result-score-b">0</span></div>
+                <div class="score-panel player-c" id="result-panel-c" style="display:none"><span class="label">Green</span><span class="value" id="result-score-c">0</span></div>
+                <div class="score-panel player-d" id="result-panel-d" style="display:none"><span class="label">Yellow</span><span class="value" id="result-score-d">0</span></div>
             </div>
             <p class="result-meta" id="result-meta">0 moves</p>
             <div class="actions">

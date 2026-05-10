@@ -19,6 +19,10 @@ class UiController(
     // ── HUD ───────────────────────────
     private val scoreAVal by lazy { document.getElementById("score-a-val") as HTMLElement }
     private val scoreBVal by lazy { document.getElementById("score-b-val") as HTMLElement }
+    private val scoreCVal by lazy { document.getElementById("score-c-val") as HTMLElement }
+    private val scoreDVal by lazy { document.getElementById("score-d-val") as HTMLElement }
+    private val hudPanelC by lazy { document.getElementById("hud-panel-c") as HTMLElement }
+    private val hudPanelD by lazy { document.getElementById("hud-panel-d") as HTMLElement }
     private val turnLabel by lazy { document.getElementById("turn-label") as HTMLElement }
     private val canvas by lazy { document.getElementById("board") as HTMLCanvasElement }
 
@@ -50,6 +54,10 @@ class UiController(
     private val resultMeta by lazy { document.getElementById("result-meta") as HTMLElement }
     private val resultScoreA by lazy { document.getElementById("result-score-a") as HTMLElement }
     private val resultScoreB by lazy { document.getElementById("result-score-b") as HTMLElement }
+    private val resultScoreC by lazy { document.getElementById("result-score-c") as HTMLElement }
+    private val resultScoreD by lazy { document.getElementById("result-score-d") as HTMLElement }
+    private val resultPanelC by lazy { document.getElementById("result-panel-c") as HTMLElement }
+    private val resultPanelD by lazy { document.getElementById("result-panel-d") as HTMLElement }
     private val confettiLayer by lazy { document.getElementById("confetti") as HTMLElement }
     private val btnPlayAgain by lazy { document.getElementById("btn-play-again") as HTMLButtonElement }
     private val btnNewGame by lazy { document.getElementById("btn-new-game") as HTMLButtonElement }
@@ -76,7 +84,12 @@ class UiController(
         "size"     to "medium",
         "scoring"  to "territory",
         "opponent" to "medium",
-        "first"    to "a"
+        "first"    to "a",
+        "players"  to "2",
+        "seat-a"   to "human",
+        "seat-b"   to "human",
+        "seat-c"   to "human",
+        "seat-d"   to "human"
     )
     private var lastReportedGameOver: Boolean = false
     private var lastSettingsBackTarget: HTMLElement? = null
@@ -90,9 +103,13 @@ class UiController(
         game.onMovePlaced = { captured ->
             if (captured) {
                 SoundFx.capture()
-                game.currentState?.lastMove?.let { coord ->
-                    val justMoved = if (game.currentState?.currentPlayer == Player.A) Player.B else Player.A
-                    renderer.triggerCaptureRipple(coord, justMoved)
+                val s = game.currentState
+                if (s != null) {
+                    val coord = s.lastMove
+                    val justMoved = s.lastMove?.let { s.board.get(it).dot } ?: Player.NONE
+                    if (coord != null && justMoved != Player.NONE) {
+                        renderer.triggerCaptureRipple(coord, justMoved)
+                    }
                 }
             } else {
                 SoundFx.place()
@@ -175,8 +192,8 @@ class UiController(
         btnStart.addEventListener("click", {
             SoundFx.click()
             val config = buildConfig()
-            val pBType = parseOpponent(choices["opponent"] ?: "medium")
-            game.startGame(config, PlayerType.HUMAN, pBType)
+            val types = buildTypes()
+            game.startGame(config, types)
             hideAll()
         })
 
@@ -184,8 +201,8 @@ class UiController(
         btnPlayAgain.addEventListener("click", {
             SoundFx.click()
             val config = buildConfig()
-            val pBType = parseOpponent(choices["opponent"] ?: "medium")
-            game.startGame(config, PlayerType.HUMAN, pBType)
+            val types = buildTypes()
+            game.startGame(config, types)
             hideAll()
             stopConfetti()
         })
@@ -412,7 +429,44 @@ class UiController(
                 else btn.classList.remove("selected")
             }
         }
+        applyPlayerCountVisibility()
         show(overlaySetup)
+    }
+
+    private fun applyPlayerCountVisibility() {
+        val count = (choices["players"] ?: "2").toIntOrNull() ?: 2
+        val ffaSection = document.getElementById("ffa-section") as HTMLElement
+        val opponentSection = document.getElementById("opponent-section") as HTMLElement
+        val seatRowD = document.getElementById("seat-row-d") as HTMLElement
+        if (count == 2) {
+            ffaSection.style.display = "none"
+            opponentSection.style.display = ""
+        } else {
+            ffaSection.style.display = ""
+            opponentSection.style.display = "none"
+            seatRowD.style.display = if (count == 4) "flex" else "none"
+        }
+        // First-player extra options
+        document.querySelectorAll(".choice-grid[data-group='first'] .choice").asList().forEach { node ->
+            val btn = node as HTMLElement
+            val v = btn.dataset["value"]
+            val show = when (v) {
+                "c" -> count >= 3
+                "d" -> count >= 4
+                else -> true
+            }
+            btn.style.display = if (show) "" else "none"
+        }
+        // If a hidden first-player value is currently selected, fall back to A
+        val currentFirst = choices["first"] ?: "a"
+        if ((currentFirst == "c" && count < 3) || (currentFirst == "d" && count < 4)) {
+            choices["first"] = "a"
+            val grid = document.querySelector(".choice-grid[data-group='first']") as? HTMLElement
+            grid?.querySelectorAll(".choice")?.asList()?.forEach { node ->
+                val btn = node as HTMLElement
+                if (btn.dataset["value"] == "a") btn.classList.add("selected") else btn.classList.remove("selected")
+            }
+        }
     }
 
     // ── Helpers ─────────────────────
@@ -424,12 +478,57 @@ class UiController(
         }
         val scoring = if (choices["scoring"] == "captured")
             ScoringVariant.CAPTURED_DOTS else ScoringVariant.TERRITORY_AREA
+        val playerCount = (choices["players"] ?: "2").toIntOrNull()?.coerceIn(2, 4) ?: 2
+        val seats = listOf(Player.A, Player.B, Player.C, Player.D).take(playerCount)
         val firstPlayer = when (choices["first"]) {
             "b" -> Player.B
-            "random" -> if ((0..1).random() == 0) Player.A else Player.B
+            "c" -> if (Player.C in seats) Player.C else Player.A
+            "d" -> if (Player.D in seats) Player.D else Player.A
+            "random" -> seats.random()
             else -> Player.A
         }
-        return preset.copy(scoringVariant = scoring, firstPlayer = firstPlayer)
+        return preset.copy(
+            scoringVariant = scoring,
+            firstPlayer = firstPlayer,
+            playerCount = playerCount,
+            playerAType = seatType(Player.A, playerCount),
+            playerBType = seatType(Player.B, playerCount),
+            playerCType = seatType(Player.C, playerCount),
+            playerDType = seatType(Player.D, playerCount)
+        )
+    }
+
+    private fun buildTypes(): Map<Player, PlayerType> {
+        val count = (choices["players"] ?: "2").toIntOrNull()?.coerceIn(2, 4) ?: 2
+        val map = mutableMapOf<Player, PlayerType>()
+        if (count == 2) {
+            map[Player.A] = PlayerType.HUMAN
+            map[Player.B] = parseOpponent(choices["opponent"] ?: "medium")
+        } else {
+            map[Player.A] = parseOpponent(choices["seat-a"] ?: "human")
+            map[Player.B] = parseOpponent(choices["seat-b"] ?: "human")
+            map[Player.C] = parseOpponent(choices["seat-c"] ?: "human")
+            if (count == 4) map[Player.D] = parseOpponent(choices["seat-d"] ?: "human")
+        }
+        return map
+    }
+
+    private fun seatType(p: Player, count: Int): PlayerType {
+        return if (count == 2) {
+            when (p) {
+                Player.A -> PlayerType.HUMAN
+                Player.B -> parseOpponent(choices["opponent"] ?: "medium")
+                else -> PlayerType.HUMAN
+            }
+        } else {
+            when (p) {
+                Player.A -> parseOpponent(choices["seat-a"] ?: "human")
+                Player.B -> parseOpponent(choices["seat-b"] ?: "human")
+                Player.C -> parseOpponent(choices["seat-c"] ?: "human")
+                Player.D -> parseOpponent(choices["seat-d"] ?: "human")
+                else -> PlayerType.HUMAN
+            }
+        }
     }
 
     private fun parseOpponent(value: String): PlayerType = when (value) {

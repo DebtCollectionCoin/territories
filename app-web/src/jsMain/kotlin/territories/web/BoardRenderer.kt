@@ -38,6 +38,28 @@ class BoardRenderer(private val canvas: HTMLCanvasElement) {
     private val playerB          = "#b83a3a"           // deep coral ink
     private val playerBOutline   = "#7d2222"
     private val territoryB       = "rgba(216,74,74,0.16)"
+    private val playerC          = "#2e7d32"           // deep green ink
+    private val playerCOutline   = "#1b5e20"
+    private val territoryC       = "rgba(46,125,50,0.16)"
+    private val playerD          = "#c58a00"           // burnt amber ink
+    private val playerDOutline   = "#8a6100"
+    private val territoryD       = "rgba(249,168,37,0.18)"
+
+    private fun stoneFill(p: Player): String = when (p) {
+        Player.A -> playerA; Player.B -> playerB
+        Player.C -> playerC; Player.D -> playerD
+        else -> playerA
+    }
+    private fun stoneOutline(p: Player): String = when (p) {
+        Player.A -> playerAOutline; Player.B -> playerBOutline
+        Player.C -> playerCOutline; Player.D -> playerDOutline
+        else -> playerAOutline
+    }
+    private fun territoryFill(p: Player): String = when (p) {
+        Player.A -> territoryA; Player.B -> territoryB
+        Player.C -> territoryC; Player.D -> territoryD
+        else -> territoryA
+    }
 
     // ── Table & paper colors ──
     private val tableTop         = "#1a1c22"
@@ -53,7 +75,7 @@ class BoardRenderer(private val canvas: HTMLCanvasElement) {
 
     fun triggerCaptureRipple(coord: Coord, player: Player) {
         rippleAt = coord
-        rippleColor = if (player == Player.A) playerA else playerB
+        rippleColor = stoneFill(player)
         rippleStart = jsNow()
     }
 
@@ -134,7 +156,7 @@ class BoardRenderer(private val canvas: HTMLCanvasElement) {
         for (coord in board.allCoords()) {
             val cell = board.get(coord)
             if (cell.territory != Player.NONE) {
-                ctx.fillStyle = if (cell.territory == Player.A) territoryA else territoryB
+                ctx.fillStyle = territoryFill(cell.territory)
                 ctx.fillRect(
                     colToX(coord.col) - cellSize / 2,
                     rowToY(coord.row) - cellSize / 2,
@@ -237,8 +259,8 @@ class BoardRenderer(private val canvas: HTMLCanvasElement) {
     private fun drawStone(coord: Coord, owner: Player, radius: Double) {
         val cx = colToX(coord.col)
         val cy = rowToY(coord.row)
-        val fill    = if (owner == Player.A) playerA else playerB
-        val outline = if (owner == Player.A) playerAOutline else playerBOutline
+        val fill    = stoneFill(owner)
+        val outline = stoneOutline(owner)
 
         // Soft ink shadow
         ctx.save()

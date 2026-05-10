@@ -13,6 +13,10 @@
     --player-a-deep: #3949ab;
     --player-b:      #ef7373;
     --player-b-deep: #d84a4a;
+    --player-c:      #66bb6a;
+    --player-c-deep: #2e7d32;
+    --player-d:      #ffd54f;
+    --player-d-deep: #f9a825;
     --accent:        #ffb300;
     --shadow-lg:     0 20px 60px rgba(0,0,0,0.55);
     --shadow-md:     0 8px 24px rgba(0,0,0,0.40);
@@ -79,6 +83,8 @@ body {
 
 .player-a .value, .player-a .label { color: var(--player-a); }
 .player-b .value, .player-b .label { color: var(--player-b); }
+.player-c .value, .player-c .label { color: var(--player-c); }
+.player-d .value, .player-d .label { color: var(--player-d); }
 
 #turn-label {
     flex: 1;
@@ -90,6 +96,34 @@ body {
 }
 #turn-label.player-a { color: var(--player-a); }
 #turn-label.player-b { color: var(--player-b); }
+#turn-label.player-c { color: var(--player-c); }
+#turn-label.player-d { color: var(--player-d); }
+
+/* FFA seat-row in setup dialog */
+.seat-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+.seat-name {
+    flex: 0 0 60px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+.seat-row .choice-grid { flex: 1; }
+.seat-row .choice { padding: 8px 4px; }
+.ffa-note {
+    color: var(--text-dim);
+    font-size: 0.78rem;
+    margin-top: 8px;
+    font-style: italic;
+}
+
+.result-winner.player-c { color: var(--player-c); }
+.result-winner.player-d { color: var(--player-d); }
 
 /* ── Board ─────────────────────────── */
 main {

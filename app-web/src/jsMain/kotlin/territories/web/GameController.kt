@@ -14,10 +14,9 @@ class GameController {
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
     private var session: LocalGameSession? = null
-    private var aiPlayer: AiPlayer? = null
+    private var aiBySeat: Map<Player, AiPlayer?> = emptyMap()
+    private var typeBySeat: Map<Player, PlayerType> = emptyMap()
     private var config: GameConfig? = null
-    private var playerAType: PlayerType = PlayerType.HUMAN
-    private var playerBType: PlayerType = PlayerType.HUMAN
     private val appliedMoves = mutableListOf<Move>()
 
     var onStateChanged: ((GameState) -> Unit)? = null
@@ -31,16 +30,22 @@ class GameController {
     fun currentSavedGame(): SavedGame? {
         val cfg = config ?: return null
         if (appliedMoves.isEmpty()) return null
-        return SavedGame(cfg, playerAType, playerBType, appliedMoves.toList())
+        return SavedGame(
+            config = cfg,
+            playerAType = typeBySeat[Player.A] ?: PlayerType.HUMAN,
+            playerBType = typeBySeat[Player.B] ?: PlayerType.HUMAN,
+            playerCType = typeBySeat[Player.C] ?: PlayerType.HUMAN,
+            playerDType = typeBySeat[Player.D] ?: PlayerType.HUMAN,
+            moves = appliedMoves.toList()
+        )
     }
 
-    fun startGame(config: GameConfig, pAType: PlayerType, pBType: PlayerType) {
+    fun startGame(config: GameConfig, types: Map<Player, PlayerType>) {
         session?.close()
         session = GameSessionFactory.createLocal(config)
         this.config = config
-        playerAType = pAType
-        playerBType = pBType
-        aiPlayer = buildAiForCurrentPlayer(config, pAType, pBType)
+        typeBySeat = config.seats.associateWith { (types[it] ?: PlayerType.HUMAN) }
+        aiBySeat = typeBySeat.mapValues { (_, t) -> buildAi(t, config) }
         appliedMoves.clear()
         SavedGameStore.clear()
         notifyState()
@@ -54,9 +59,13 @@ class GameController {
             session?.close()
             session = GameSessionFactory.createLocal(saved.config)
             config = saved.config
-            playerAType = saved.playerAType
-            playerBType = saved.playerBType
-            aiPlayer = buildAiForCurrentPlayer(saved.config, saved.playerAType, saved.playerBType)
+            typeBySeat = mapOf(
+                Player.A to saved.playerAType,
+                Player.B to saved.playerBType,
+                Player.C to saved.playerCType,
+                Player.D to saved.playerDType
+            ).filterKeys { it in saved.config.seats }
+            aiBySeat = typeBySeat.mapValues { (_, t) -> buildAi(t, saved.config) }
             appliedMoves.clear()
 
             scope.launch(Dispatchers.Main) {
@@ -135,11 +144,11 @@ class GameController {
     }
 
     private fun scheduleAiTurn() {
-        val ai = aiPlayer ?: return
         val s = session ?: return
+        val state = s.stateFlow.value
+        val ai = aiBySeat[state.currentPlayer] ?: return
         scope.launch {
             onAiThinking?.invoke(true)
-            val state = s.stateFlow.value
             val coord = ai.selectMove(state)
             withContext(Dispatchers.Main) {
                 val before = state
@@ -183,35 +192,25 @@ class GameController {
         SavedGameStore.save(
             SavedGame(
                 config      = cfg,
-                playerAType = playerAType,
-                playerBType = playerBType,
+                playerAType = typeBySeat[Player.A] ?: PlayerType.HUMAN,
+                playerBType = typeBySeat[Player.B] ?: PlayerType.HUMAN,
+                playerCType = typeBySeat[Player.C] ?: PlayerType.HUMAN,
+                playerDType = typeBySeat[Player.D] ?: PlayerType.HUMAN,
                 moves       = appliedMoves.toList()
             )
         )
     }
 
-    private fun isAiTurn(player: Player): Boolean = when (player) {
-        Player.A -> playerAType != PlayerType.HUMAN
-        Player.B -> playerBType != PlayerType.HUMAN
-        else -> false
-    }
+    private fun isAiTurn(player: Player): Boolean =
+        (typeBySeat[player] ?: PlayerType.HUMAN) != PlayerType.HUMAN
 
-    private fun buildAiForCurrentPlayer(config: GameConfig, pAType: PlayerType, pBType: PlayerType): AiPlayer? {
-        val aiType = when {
-            pBType != PlayerType.HUMAN -> pBType
-            pAType != PlayerType.HUMAN -> pAType
-            else -> return null
-        }
-        return buildAi(aiType, config)
-    }
-
-    private fun buildAi(type: PlayerType, config: GameConfig): AiPlayer {
+    private fun buildAi(type: PlayerType, config: GameConfig): AiPlayer? {
         val engine = territories.engine.engine.GameEngine(config)
         return when (type) {
             PlayerType.AI_EASY -> EasyAiPlayer()
             PlayerType.AI_MEDIUM -> MediumAiPlayer(engine)
             PlayerType.AI_HARD -> HardAiPlayer(engine)
-            PlayerType.HUMAN -> EasyAiPlayer()
+            PlayerType.HUMAN -> null
         }
     }
 
