@@ -183,9 +183,162 @@ fun main(argv: Array<String>) {
 
     when (System.getProperty("bench.mode") ?: "medium") {
         "hard" -> runHardSweep(args)
+        "ffa3" -> runFfaSweep(args, players = 3)
+        "ffa4" -> runFfaSweep(args, players = 4)
         else   -> runMediumSweep(args)
     }
 }
+
+// ── FFA (3- and 4-player) sweep ────────────────────────────────────────
+
+private data class FfaResult(
+    val name: String,
+    val games: Int,
+    val wins: IntArray,         // wins per seat (size = players)
+    val draws: Int,
+    val avgScore: DoubleArray,  // avg score per seat
+    val avgCaps: DoubleArray,   // avg dots captured by seat (others' dots inside its territory)
+    val avgMoves: Double,
+    val totalMs: Long
+) {
+    fun pretty(seatNames: List<String>): String = buildString {
+        append("%-44s ".format(name))
+        append("g=%-3d ".format(games))
+        for (i in wins.indices) append("${seatNames[i]}=%2d ".format(wins[i]))
+        append("D=%2d  ".format(draws))
+        append("score=")
+        append(avgScore.indices.joinToString("/") { "%4.1f".format(avgScore[it]) })
+        append("  caps=")
+        append(avgCaps.indices.joinToString("/") { "%4.1f".format(avgCaps[it]) })
+        append("  mv=%4.1f  %5dms".format(avgMoves, totalMs))
+    }
+}
+
+private fun playOneFfa(
+    cfg: GameConfig,
+    cols: Int, rows: Int,
+    factories: List<(GameEngine) -> AiPlayer>,
+    maxMoves: Int,
+    rng: Random
+): GameState {
+    val engine = GameEngine(cfg)
+    val seats = cfg.players()
+    val ais = seats.mapIndexed { i, _ -> factories[i](engine) }
+    var state = engine.initialState()
+    val seedCol = 1 + rng.nextInt(cols - 2)
+    val seedRow = 1 + rng.nextInt(rows - 2)
+    state = engine.applyMove(state, Coord(seedCol, seedRow)).getOrThrow()
+    var moves = 0
+    while (moves < maxMoves && !state.isGameOver) {
+        val seatIdx = seats.indexOf(state.currentPlayer)
+        val ai = ais[seatIdx]
+        val mv = runBlocking { ai.selectMove(state) }
+        val r = engine.applyMove(state, mv)
+        if (r.isFailure) break
+        state = r.getOrThrow()
+        moves++
+    }
+    return state
+}
+
+private fun runFfaMatch(
+    name: String,
+    args: BenchArgs,
+    players: Int,
+    factories: List<(GameEngine) -> AiPlayer>
+): FfaResult {
+    AiLog.enabled = false
+    val seats = listOf(Player.A, Player.B, Player.C, Player.D).take(players)
+    val cfg = GameConfig(
+        cols = args.cols, rows = args.rows,
+        playerCount = players,
+        playerAType = PlayerType.AI_HARD,
+        playerBType = PlayerType.AI_HARD,
+        playerCType = PlayerType.AI_HARD,
+        playerDType = if (players == 4) PlayerType.AI_HARD else PlayerType.HUMAN
+    )
+    val scorer = ScoreCalculator()
+    val wins = IntArray(players)
+    val scoreSum = DoubleArray(players)
+    val capsSum = DoubleArray(players)
+    var draws = 0
+    var moves = 0
+    val ms = measureTimeMillis {
+        val rng = Random(args.seed)
+        repeat(args.games) {
+            val state = playOneFfa(cfg, args.cols, args.rows, factories, args.maxMoves, rng)
+            val s = scorer.calculate(state)
+            val perSeat = IntArray(players) { s.forPlayer(seats[it]) }
+            for (i in 0 until players) scoreSum[i] += perSeat[i]
+            // captures: opponent dots inside this seat's territory
+            val board = state.board
+            for (i in 0 until players) {
+                var c = 0
+                for (j in 0 until players) {
+                    if (i == j) continue
+                    for (coord in board.cellsOf(seats[j])) {
+                        if (board.get(coord).territory == seats[i]) c++
+                    }
+                }
+                capsSum[i] += c
+            }
+            moves += state.moveCount
+            val best = perSeat.max()
+            val winners = perSeat.indices.filter { perSeat[it] == best }
+            if (winners.size == 1) wins[winners[0]]++ else draws++
+        }
+    }
+    val n = args.games.toDouble()
+    return FfaResult(
+        name = name,
+        games = args.games,
+        wins = wins,
+        draws = draws,
+        avgScore = DoubleArray(players) { scoreSum[it] / n },
+        avgCaps = DoubleArray(players) { capsSum[it] / n },
+        avgMoves = moves / n,
+        totalMs = ms
+    )
+}
+
+/**
+ * Free-for-all sweep. Verifies the paranoid evaluator does not become
+ * pathologically defensive (e.g. always behind on real score because it
+ * over-weights opponent threats from every direction), and confirms the
+ * skill ladder still holds: Hard > Medium > Easy.
+ */
+private fun runFfaSweep(args: BenchArgs, players: Int) {
+    val baseline = BoardEvaluator.Weights()
+    val seatNames = listOf("A", "B", "C", "D").take(players)
+    val depth = args.hardDepth
+    val time  = args.hardTimeMs
+    val H = hardWith(baseline, depth, time)
+    val M = mediumWith(baseline)
+    val E: (GameEngine) -> AiPlayer = { _ -> EasyAiPlayer() }
+
+    fun List<(GameEngine) -> AiPlayer>.padTo() = if (players == 4) this + E else this
+
+    val matchups: List<Pair<String, List<(GameEngine) -> AiPlayer>>> = listOf(
+        // Skill ladder: 1 Hard against the rest Easy. Hard should dominate.
+        "hard_vs_easies"   to (listOf(H, E, E)).padTo(),
+        // Hard vs Medium vs Easy (mix). Hard should still win the most.
+        "hard_med_easy"    to (listOf(H, M, E)).padTo(),
+        // All-Hard self-play baseline (no seat should systematically lose).
+        "all_hard"         to (listOf(H, H, H)).padTo(),
+        // All-Medium baseline for cheaper signal.
+        "all_medium"       to (listOf(M, M, M)).padTo(),
+        // Medium vs Hard vs Hard — does paranoid Hard cooperate to crush Medium?
+        "medium_at_seatA"  to (listOf(M, H, H)).padTo()
+    )
+
+    val results = matchups.map { (name, fac) -> runFfaMatch(name, args, players, fac) }
+    println()
+    println("─── FFA-$players results (depth=$depth time=${time}ms board=${args.cols}x${args.rows}) ───")
+    for (r in results) println(r.pretty(seatNames))
+}
+
+private fun GameConfig.players(): List<Player> =
+    listOf(Player.A, Player.B, Player.C, Player.D).take(playerCount)
 
 /**
  * Hard-AI tuning sweep. Hard search is much slower than Medium, so we
