@@ -86,7 +86,7 @@ class GameServer(val registry: GameRegistry) {
                 broadcastLobby(msg.lobbyId)
             }
             is SubmitMove  -> handleSubmit(session, msg)
-            is Resign      -> session.send(ServerError("NOT_IMPLEMENTED", "resign in Phase E"))
+            is Resign      -> handleResign(session, msg)
             is Resume      -> session.send(ServerError("NOT_IMPLEMENTED", "resume in Phase E"))
             Heartbeat      -> { /* keepalive */ }
         }
@@ -117,27 +117,54 @@ class GameServer(val registry: GameRegistry) {
         when (result) {
             is ServerGame.MoveResult.Applied -> {
                 val applied = MoveApplied(game.gameId, msg.coord, result.newState)
-                for (uid in gameSubs[game.gameId].orEmpty()) {
-                    sessions[uid]?.send?.invoke(applied)
-                }
-                if (result.newState.isGameOver) {
-                    val score = registry.finalScore(game)
-                    val best = listOf(score.playerA, score.playerB, score.playerC, score.playerD).max()
-                    val seats = listOf(territories.engine.model.Player.A,
-                                       territories.engine.model.Player.B,
-                                       territories.engine.model.Player.C,
-                                       territories.engine.model.Player.D)
-                        .take(game.config.playerCount)
-                    val winners = seats.filter { score.forPlayer(it) == best }
-                    val ended = GameEnded(game.gameId, score, winners)
-                    for (uid in gameSubs[game.gameId].orEmpty()) {
-                        sessions[uid]?.send?.invoke(ended)
-                    }
-                }
+                broadcast(game.gameId, applied)
+                if (result.newState.isGameOver) broadcastGameEnded(game)
             }
             is ServerGame.MoveResult.Rejected ->
                 session.send(MoveRejected(game.gameId, game.state.value.moveCount, result.reason))
         }
+    }
+
+    private suspend fun handleResign(session: Session, msg: Resign) {
+        val game = registry.getGame(msg.gameId)
+            ?: return session.send(ServerError("GAME_NOT_FOUND", msg.gameId))
+        val result = game.resign(session.user.userId)
+        when (result) {
+            is ServerGame.MoveResult.Applied -> {
+                // Broadcast new state via MoveApplied (no coord — use the
+                // last move's coord or a sentinel). Spec uses GameEnded
+                // for the surrender-driven termination.
+                if (result.newState.isGameOver) broadcastGameEnded(game)
+                else {
+                    // multiplayer FFA: someone resigned but game continues.
+                    // Push the post-resign state as a synthetic MoveApplied
+                    // so subscribers re-render. Reuse last-move coord if
+                    // present, otherwise (-1,-1).
+                    val coord = result.newState.lastMove ?: territories.engine.model.Coord(-1, -1)
+                    broadcast(game.gameId, MoveApplied(game.gameId, coord, result.newState))
+                }
+            }
+            is ServerGame.MoveResult.Rejected ->
+                session.send(ServerError("RESIGN_REJECTED", result.reason))
+        }
+    }
+
+    private suspend fun broadcast(gameId: String, msg: ServerMessage) {
+        for (uid in gameSubs[gameId].orEmpty()) {
+            sessions[uid]?.send?.invoke(msg)
+        }
+    }
+
+    private suspend fun broadcastGameEnded(game: ServerGame) {
+        val score = registry.finalScore(game)
+        val seats = listOf(territories.engine.model.Player.A,
+                           territories.engine.model.Player.B,
+                           territories.engine.model.Player.C,
+                           territories.engine.model.Player.D)
+            .take(game.config.playerCount)
+        val best = seats.maxOf { score.forPlayer(it) }
+        val winners = seats.filter { score.forPlayer(it) == best }
+        broadcast(game.gameId, GameEnded(game.gameId, score, winners))
     }
 }
 

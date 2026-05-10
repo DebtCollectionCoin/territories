@@ -71,4 +71,18 @@ class ServerGame(
         if (applied.isGameOver) ended = true
         return MoveResult.Applied(applied)
     }
+
+    /**
+     * Resign on behalf of [userId]. Delegates to the engine's
+     * [GameEngine.surrender] which handles both 2-player (immediate
+     * end) and N-player (eliminate seat, continue if >1 left) cases.
+     */
+    fun resign(userId: String): MoveResult {
+        if (ended) return MoveResult.Rejected("game ended")
+        val seat = seatOf(userId) ?: return MoveResult.Rejected("not seated")
+        val applied = engine.surrender(_state.value, seat)
+        _state.value = applied
+        if (applied.isGameOver) ended = true
+        return MoveResult.Applied(applied)
+    }
 }
