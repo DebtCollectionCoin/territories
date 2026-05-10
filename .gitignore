@@ -33,3 +33,4 @@ keystore.properties
 
 # Node / npm (if any tooling is added later)
 node_modules/
+*.hprof

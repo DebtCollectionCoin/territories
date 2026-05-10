@@ -19,6 +19,13 @@ val keystoreProps = Properties().apply {
     }
 }
 
+// Single source of truth for app version (shared with desktop / web docs).
+val versionProps = Properties().apply {
+    rootProject.file("version.properties").inputStream().use { load(it) }
+}
+val appVersionName: String = versionProps.getProperty("versionName")
+val appVersionCode: Int = versionProps.getProperty("versionCode").toInt()
+
 android {
     namespace = "territories.app"
     compileSdk = 35
@@ -27,8 +34,8 @@ android {
         applicationId = "territories.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
     }
 
     signingConfigs {

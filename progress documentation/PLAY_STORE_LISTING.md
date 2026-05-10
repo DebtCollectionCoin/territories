@@ -79,6 +79,18 @@ the project's GitHub Pages site.
 The desktop build runs the same Compose UI and is convenient for
 capturing screenshots at controlled resolutions.
 
+## Release notes — v0.3.0
+
+```
+What's new in 0.3.0:
+• Hot-seat 3- and 4-player free-for-all on a single device.
+• Free-for-all AI: paranoid minimax now powers Easy / Medium / Hard at
+  every seat — no more "Easy only" restriction in 3+ player games.
+• Setup screen reworked: pick player count, then assign Human / Easy /
+  Medium / Hard to each seat (Blue / Red / Green / Yellow).
+• Result and history screens now show all 4 final scores when applicable.
+```
+
 ## Release notes — v0.2.0
 
 ```

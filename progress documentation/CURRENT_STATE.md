@@ -1,7 +1,7 @@
 # Current State
 
-Snapshot: HEAD `e01e0b3` on `main` (May 2026). Released version `0.2.0`
-(versionCode 2). Modules wired in `settings.gradle.kts`:
+Snapshot: HEAD `b7165ed` on `main` (May 2026). Released version `0.3.0`
+(versionCode 3). Modules wired in `settings.gradle.kts`:
 `:engine`, `:session`, `:ranking`, `:shared-ui`, `:app-android`,
 `:app-desktop`, `:app-web`.
 
@@ -64,7 +64,8 @@ into a server (Phase D).
 
 ## 5. `:app-android` — Android client ✅ (offline)
 
-26 files. Compose + Hilt + Room. Released to Play Store as v0.2.0.
+26 files. Compose + Hilt + Room. Released to Play Store as v0.2.0;
+v0.3.0 AAB built locally (FFA hot-seat + paranoid AI), pending upload.
 
 | Screen | State |
 |--------|-------|
@@ -110,7 +111,7 @@ HiDPI canvas.
 |----------|--------|
 | `.github/workflows/build.yml` | ✅ Gradle build on PR/push |
 | `.github/workflows/deploy-pages.yml` | ✅ web → GitHub Pages on push to `main` |
-| Android Play Store | ✅ v0.2.0 published; v0.3.0 changelog drafted, no upload yet |
+| Android Play Store | 🟡 v0.2.0 published; v0.3.0 AAB built locally, awaiting Play Console upload |
 | Desktop installers | 🟡 build locally; no release artefacts published |
 | Web PWA | ✅ live |
 
@@ -133,9 +134,12 @@ HiDPI canvas.
 
 ## 10. Immediately-next candidates
 
-1. **Cut v0.3.0** — bump `version.properties`, write release notes for
-   FFA hot-seat + paranoid Hard AI, ship Android signed bundle, redeploy
-   web PWA bump.
+1. **Cut v0.3.0** — ✅ done. `version.properties` bumped to
+   `versionCode=3 / versionName=0.3.0`, wired via
+   `app-android/build.gradle.kts` (no more hardcoded `1.0.0`). Release
+   notes added to `PLAY_STORE_LISTING.md`. AAB at
+   `app-android/build/outputs/bundle/release/app-android-release.aab`
+   (7 MB). Upload to Play Console manually.
 2. **Strength check** — ✅ done. `runBenchmark -Pbench.mode=ffa3 --games
    6 --depth 2 --time-ms 400` shows skill ladder holds (Hard 4/6 vs
    2 Easy; Hard 5/6 vs Medium across mixed matches), no seat bias in
