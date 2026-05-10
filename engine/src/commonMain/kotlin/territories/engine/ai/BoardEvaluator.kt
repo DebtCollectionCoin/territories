@@ -78,26 +78,36 @@ class BoardEvaluator(
         breakdown(state, player).total
 
     fun breakdown(state: GameState, player: Player): Breakdown {
-        val opponent = if (player == Player.A) Player.B else Player.A
+        // Paranoid generalisation: treat every other seat as a single
+        // virtual opponent. In 2-player games this collapses back to the
+        // original behaviour exactly.
+        val others: Set<Player> = state.players.toSet() - player
         val board = state.board
         val score = scorer.calculate(state)
 
-        val realScore = if (player == Player.A) score.playerA - score.playerB
-                        else score.playerB - score.playerA
+        // Score delta = own score minus the worst-case opponent score.
+        // In 2-player games this is identical to the old playerA-playerB term.
+        val ownScore = score.forPlayer(player)
+        val maxOtherScore = others.maxOfOrNull { score.forPlayer(it) } ?: 0
+        val realScore = ownScore - maxOtherScore
 
-        // BFS distance from border, treating the given player's dots/territory
-        // as walls (impassable).
-        val distOpp = bfsDistanceFromBorder(board, blocker = player)
-        val distOwn = bfsDistanceFromBorder(board, blocker = opponent)
+        // BFS distance from border. Two perspectives:
+        //   • distOpp — rootPlayer's stones are walls, every other seat is
+        //     passable. Used to bury / trap *any* opponent.
+        //   • distOwn — every non-root seat is a wall. Used to ensure we
+        //     are not the one being buried by the coalition.
+        val distOpp = bfsDistanceFromBorder(board, blockers = setOf(player))
+        val distOwn = bfsDistanceFromBorder(board, blockers = others)
 
-        // A dot only counts as "live" for the player whose colour it bears
-        // AND whose territory it is NOT trapped inside. Captured dots are
-        // absorbed and don't contribute to either side's calculations.
-        val oppDots = board.cellsOf(opponent).filter {
+        // Live opponent dots = any non-root seat's stones not absorbed into
+        // root's territory.
+        val oppDots = others.flatMap { board.cellsOf(it) }.filter {
             board.get(it).territory != player
         }
+        // Live own dots = root's stones not absorbed by anyone else.
         val ownDots = board.cellsOf(player).filter {
-            board.get(it).territory != opponent
+            val t = board.get(it).territory
+            t == Player.NONE || t == player
         }
 
         // Trapped = unreachable from border (distance == -1).
@@ -187,7 +197,7 @@ class BoardEvaluator(
         // tightening the noose around the smallest. This is the user's
         // "surround opponent dots as they come" rule made explicit: we
         // care about the most-threatened group, not the global wall length.
-        val componentPressure = computeComponentPressure(board, opponent, player, oppDots)
+        val componentPressure = computeComponentPressure(board, player, oppDots)
 
         val total = realScore         * weights.realScore +
                     oppTrapped        * weights.oppTrapped -
@@ -231,7 +241,6 @@ class BoardEvaluator(
      */
     private fun computeComponentPressure(
         board: Board,
-        opponent: Player,
         ourPlayer: Player,
         oppDots: List<Coord>
     ): Int {
@@ -302,19 +311,17 @@ class BoardEvaluator(
      * Multi-source BFS from every passable border cell. Returns a 2D array
      * where cells reachable from the border have their (4-connected)
      * geodesic distance, and unreachable cells have -1. A cell is
-     * impassable iff its dot OR its territory belongs to [blocker].
+     * impassable iff its dot OR its territory belongs to any seat in
+     * [blockers].
      */
-    private fun bfsDistanceFromBorder(board: Board, blocker: Player): Array<IntArray> {
+    private fun bfsDistanceFromBorder(board: Board, blockers: Set<Player>): Array<IntArray> {
         val dist = Array(board.cols) { IntArray(board.rows) { -1 } }
         val queue = ArrayDeque<Coord>()
 
         fun isImpassable(c: Coord): Boolean {
             val cell = board.get(c)
-            // Match CaptureDetector: once a cell is inside someone's territory,
-            // only the territory owner's material lives there. A captured
-            // opponent dot does not block its original owner anymore.
-            return if (cell.territory != Player.NONE) cell.territory == blocker
-            else cell.dot == blocker
+            return if (cell.territory != Player.NONE) cell.territory in blockers
+            else cell.dot in blockers
         }
 
         // Seed with passable border cells at distance 0.

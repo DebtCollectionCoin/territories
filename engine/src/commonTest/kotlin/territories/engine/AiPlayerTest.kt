@@ -200,4 +200,51 @@ class AiPlayerTest {
         }
         assertTrue(turns > 0)
     }
+
+    // ── FFA paranoid-minimax sanity ─────────────────────────────────────
+
+    @Test
+    fun hardAi_inFfaThreePlayers_returnsLegalMove() = runBlocking {
+        val ffaConfig = GameConfig(
+            cols = 11, rows = 11,
+            playerCount = 3,
+            playerBType = PlayerType.AI_HARD,
+            playerCType = PlayerType.AI_HARD
+        )
+        val ffaEngine = GameEngine(ffaConfig)
+        val hard = HardAiPlayer(ffaEngine, maxDepth = 2, maxTimeMs = 200L)
+        var state = ffaEngine.initialState()
+        var moves = 0
+        while (!state.isGameOver && moves < 30) {
+            val coord = hard.selectMove(state)
+            assertTrue(LegalMoveChecker().isLegal(coord, state),
+                "Hard AI returned illegal move in FFA: $coord")
+            state = ffaEngine.applyMove(state, coord).getOrThrow()
+            moves++
+        }
+        assertTrue(moves > 0)
+    }
+
+    @Test
+    fun mediumAi_inFfaFourPlayers_returnsLegalMove() = runBlocking {
+        val ffaConfig = GameConfig(
+            cols = 11, rows = 11,
+            playerCount = 4,
+            playerBType = PlayerType.AI_MEDIUM,
+            playerCType = PlayerType.AI_MEDIUM,
+            playerDType = PlayerType.AI_MEDIUM
+        )
+        val ffaEngine = GameEngine(ffaConfig)
+        val ai = MediumAiPlayer(ffaEngine)
+        var state = ffaEngine.initialState()
+        var moves = 0
+        while (!state.isGameOver && moves < 30) {
+            val coord = ai.selectMove(state)
+            assertTrue(LegalMoveChecker().isLegal(coord, state),
+                "Medium AI returned illegal move in FFA: $coord")
+            state = ffaEngine.applyMove(state, coord).getOrThrow()
+            moves++
+        }
+        assertTrue(moves > 0)
+    }
 }

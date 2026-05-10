@@ -117,10 +117,7 @@ fun SetupScreen(
                     )
                 }
             } else {
-                SettingSection(
-                    label = "Seats",
-                    description = "Medium / Hard AI for free-for-all is in progress"
-                ) {
+                SettingSection(label = "Seats") {
                     SeatRow("Blue",   vm.seatA) { vm.seatA = it }
                     Spacer(Modifier.height(8.dp))
                     SeatRow("Red",    vm.seatB) { vm.seatB = it }
@@ -270,31 +267,46 @@ private fun SeatRow(
     selected:  String,
     onSelect:  (String) -> Unit
 ) {
-    Row(
-        modifier            = Modifier.fillMaxWidth(),
-        verticalAlignment   = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
+    Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text       = seatLabel.uppercase(),
             style      = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.SemiBold,
             color      = MaterialTheme.colorScheme.primary,
-            modifier   = Modifier.padding(end = 4.dp)
+            modifier   = Modifier.padding(bottom = 6.dp)
         )
-        Box(modifier = Modifier.weight(1f)) {
-            ChoiceCard(
-                choice     = Choice("Human", "Pass and play", "human"),
-                isSelected = selected == "human",
-                onClick    = { onSelect("human") }
-            )
-        }
-        Box(modifier = Modifier.weight(1f)) {
-            ChoiceCard(
-                choice     = Choice("AI Easy", "Random legal", "easy"),
-                isSelected = selected == "easy",
-                onClick    = { onSelect("easy") }
-            )
+        Row(
+            modifier              = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(modifier = Modifier.weight(1f)) {
+                ChoiceCard(
+                    choice     = Choice("Human", "Pass & play", "human"),
+                    isSelected = selected == "human",
+                    onClick    = { onSelect("human") }
+                )
+            }
+            Box(modifier = Modifier.weight(1f)) {
+                ChoiceCard(
+                    choice     = Choice("Easy", "Random", "easy"),
+                    isSelected = selected == "easy",
+                    onClick    = { onSelect("easy") }
+                )
+            }
+            Box(modifier = Modifier.weight(1f)) {
+                ChoiceCard(
+                    choice     = Choice("Med", "1-ply", "medium"),
+                    isSelected = selected == "medium",
+                    onClick    = { onSelect("medium") }
+                )
+            }
+            Box(modifier = Modifier.weight(1f)) {
+                ChoiceCard(
+                    choice     = Choice("Hard", "Search", "hard"),
+                    isSelected = selected == "hard",
+                    onClick    = { onSelect("hard") }
+                )
+            }
         }
     }
 }

@@ -104,18 +104,12 @@ fun SetupDialog(
                             options = opponentOptions(includeAi = true)
                         ) { typeB = it }
                     } else {
-                        SeatRow("Player A (Blue)", typeA, includeAi = false) { typeA = it }
-                        SeatRow("Player B (Red)", typeB, includeAi = false) { typeB = it }
-                        SeatRow("Player C (Green)", typeC, includeAi = false) { typeC = it }
+                        SeatRow("Player A (Blue)", typeA, includeAi = true) { typeA = it }
+                        SeatRow("Player B (Red)", typeB, includeAi = true) { typeB = it }
+                        SeatRow("Player C (Green)", typeC, includeAi = true) { typeC = it }
                         if (playerCount == 4) {
-                            SeatRow("Player D (Yellow)", typeD, includeAi = false) { typeD = it }
+                            SeatRow("Player D (Yellow)", typeD, includeAi = true) { typeD = it }
                         }
-                        Text(
-                            "FFA mode currently supports Human or Easy-AI seats. " +
-                                "Medium / Hard AI for free-for-all is in progress.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
                     }
 
                     SetupSelect(
@@ -169,20 +163,12 @@ private fun SeatRow(
 }
 
 private fun opponentOptions(includeAi: Boolean): List<Pair<String, String>> =
-    if (includeAi) {
-        listOf(
-            "human"  to "Human (pass-and-play)",
-            "easy"   to "AI – Easy",
-            "medium" to "AI – Medium",
-            "hard"   to "AI – Hard"
-        )
-    } else {
-        // FFA mode: Medium and Hard are not yet supported beyond 2 seats.
-        listOf(
-            "human" to "Human (pass-and-play)",
-            "easy"  to "AI – Easy"
-        )
-    }
+    listOf(
+        "human"  to "Human (pass-and-play)",
+        "easy"   to "AI – Easy",
+        "medium" to "AI – Medium",
+        "hard"   to "AI – Hard"
+    )
 
 private fun firstPlayerOptions(playerCount: Int): List<Pair<String, String>> {
     val base = mutableListOf(

@@ -297,6 +297,7 @@ main {
     gap: 8px;
 }
 .choice-grid.two-col { grid-template-columns: 1fr 1fr; }
+.choice-grid.four-col { grid-template-columns: repeat(4, 1fr); }
 
 .choice {
     display: flex;
@@ -533,6 +534,7 @@ button.secondary:hover { background: var(--bg-surface); }
 @media (max-width: 360px) {
     .choice-grid { grid-template-columns: 1fr; }
     .choice-grid.two-col { grid-template-columns: 1fr; }
+    .choice-grid.four-col { grid-template-columns: 1fr 1fr; }
 }
 
 /* Reduce motion */

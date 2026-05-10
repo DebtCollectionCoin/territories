@@ -120,7 +120,9 @@ class SetupViewModel @Inject constructor(
     }
 
     private fun parseSeat(value: String): PlayerType = when (value) {
-        "easy" -> PlayerType.AI_EASY
-        else   -> PlayerType.HUMAN  // FFA restricts Medium/Hard for now
+        "easy"   -> PlayerType.AI_EASY
+        "medium" -> PlayerType.AI_MEDIUM
+        "hard"   -> PlayerType.AI_HARD
+        else     -> PlayerType.HUMAN
     }
 }

@@ -15,10 +15,6 @@ class HardAiPlayer(
     private val evaluator = BoardEvaluator(ScoreCalculator(), weights)
 
     override suspend fun selectMove(state: GameState): Coord {
-        require(state.players.size == 2) {
-            "HardAiPlayer is only supported in 2-player games (got ${state.players.size}); " +
-            "use EasyAiPlayer for free-for-all until paranoid-minimax FFA support ships."
-        }
         val legal = checker.allLegalMoves(state)
         if (legal.isEmpty()) error("No legal moves available")
         if (legal.size == 1) return legal.first()
@@ -75,7 +71,6 @@ class HardAiPlayer(
                 val score = minimax(
                     newState, depth - 1,
                     Int.MIN_VALUE, Int.MAX_VALUE,
-                    isMaximizing = false,
                     rootPlayer = player,
                     deadline = deadline
                 )
@@ -116,7 +111,6 @@ class HardAiPlayer(
         depth: Int,
         alpha: Int,
         beta: Int,
-        isMaximizing: Boolean,
         rootPlayer: Player,
         deadline: Long
     ): Int {
@@ -134,6 +128,10 @@ class HardAiPlayer(
             }
         }.ifEmpty { legalAll }
 
+        // Paranoid: root maximises on its own turn, every other seat
+        // minimises on theirs. Generalises the 2-player isMaximizing flag
+        // to N players via state.currentPlayer.
+        val isMaximizing = state.currentPlayer == rootPlayer
         var a = alpha
         var b = beta
         var result = if (isMaximizing) Int.MIN_VALUE else Int.MAX_VALUE
@@ -141,7 +139,7 @@ class HardAiPlayer(
         for (coord in legal) {
             if (currentTimeMs() > deadline) break
             val child = engine.applyMove(state, coord).getOrNull() ?: continue
-            val score = minimax(child, depth - 1, a, b, !isMaximizing, rootPlayer, deadline)
+            val score = minimax(child, depth - 1, a, b, rootPlayer, deadline)
             if (isMaximizing) {
                 result = maxOf(result, score)
                 a = maxOf(a, result)
