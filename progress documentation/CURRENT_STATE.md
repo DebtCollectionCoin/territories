@@ -125,7 +125,7 @@ HiDPI canvas.
 | B — Local hot-seat 4-player UI (all 3 platforms) | v0.4.0 | ✅ commits `2a80e1d` (desktop), `cc9a451` (web), `22bfc5e` (Android) |
 | C — Ranking module (TrueSkill, offline) | v0.5.0 | ✅ commit `ba4e69f` |
 | FFA AI (paranoid minimax) | v0.5.x | ✅ commit `e01e0b3` — **done ahead of schedule** |
-| D — Ktor server skeleton + Postgres | v0.6.0 | ⏳ not started |
+| D — Ktor server skeleton + Postgres | v0.6.0 | 🟡 in progress — `:protocol` + `:server` modules added; in-memory lobby/game registry; WebSocket `/ws` with Welcome/CreateLobby/JoinLobby/SubmitMove/MoveApplied/MoveRejected/GameEnded; Postgres + auth deferred |
 | E — Online real-time 4-player + matchmaking | v0.7.0 | ⏳ |
 | F — Async correspondence | v0.8.0 | ⏳ |
 | G — Polish + leaderboards | v1.0.0 | ⏳ |
@@ -145,9 +145,14 @@ HiDPI canvas.
    2 Easy; Hard 5/6 vs Medium across mixed matches), no seat bias in
    all-Hard self-play. AI is not over-defending. Production tuning
    wants longer budgets / larger boards (60-move cap is hit).
-3. **Phase D bootstrap** — new `:server` module (Ktor + WebSockets) that
-   reuses `:engine` and `:ranking` directly. Postgres schema lives in
-   `MULTIPLAYER_DESIGN.md` §6.
+3. **Phase D bootstrap** — ✅ skeleton landed. New `:protocol` (KMP)
+   and `:server` (JVM) modules. Server reuses `:engine` and `:ranking`
+   directly; in-memory lobby/game registry; WebSocket `/ws` exchanges
+   `Welcome` / `CreateLobby` / `JoinLobby` / `SubmitMove` /
+   `MoveApplied` / `MoveRejected` / `GameStarted` / `GameEnded`. Run
+   via `./gradlew :server:run` (port 9000). Smoke tests pass. Postgres
+   schema, auth, ranked-rating updates, and reconnect/resume deferred
+   to Phase E.
 4. **Shared `BoardCanvas`** — finish migrating Android/desktop renderers
    into `:shared-ui` (web stays bespoke for design control). Plan in
    [SHARED_UI_PLAN.md](SHARED_UI_PLAN.md).

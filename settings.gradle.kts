@@ -14,4 +14,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "territories"
-include(":engine", ":session", ":app-web", ":app-android", ":app-desktop", ":shared-ui", ":ranking")
+include(":engine", ":session", ":app-web", ":app-android", ":app-desktop", ":shared-ui", ":ranking", ":protocol", ":server")
