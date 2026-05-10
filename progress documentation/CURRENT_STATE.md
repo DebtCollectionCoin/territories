@@ -153,9 +153,15 @@ HiDPI canvas.
    via `./gradlew :server:run` (port 9000). Smoke tests pass. Postgres
    schema, auth, ranked-rating updates, and reconnect/resume deferred
    to Phase E.
-4. **Shared `BoardCanvas`** — finish migrating Android/desktop renderers
-   into `:shared-ui` (web stays bespoke for design control). Plan in
-   [SHARED_UI_PLAN.md](SHARED_UI_PLAN.md).
+4. **Shared `BoardCanvas`** — 🟡 incremental progress. `BoardLayout`
+   data class + `computeBoardLayout` + `screenToCell` extension live
+   in `:shared-ui` (`commonMain`); both Android and Desktop
+   `BoardCanvas` now consume the shared math (no more inline
+   `(offset.x - l.offsetX) / l.cellSize + 0.5f` duplication). Pure
+   board drawing + full `BoardCanvas` migration still pending —
+   that step requires adding the compose-multiplatform plugin to
+   `:shared-ui` and aligning Android / Desktop Compose toolchains.
+   Plan in [SHARED_UI_PLAN.md](SHARED_UI_PLAN.md).
 
 ---
 

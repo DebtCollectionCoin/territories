@@ -27,6 +27,9 @@ import androidx.compose.ui.input.pointer.pointerInput
 import territories.engine.model.Coord
 import territories.engine.model.GameState
 import territories.engine.model.Player
+import territories.sharedui.BoardLayout
+import territories.sharedui.computeBoardLayout
+import territories.sharedui.screenToCell
 
 @Composable
 fun BoardCanvas(
@@ -34,9 +37,7 @@ fun BoardCanvas(
     onCoordClick: (Coord) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    data class Layout(val cellSize: Float, val offsetX: Float, val offsetY: Float)
-
-    var layout by remember { mutableStateOf<Layout?>(null) }
+    var layout by remember { mutableStateOf<BoardLayout?>(null) }
     val board = state.board
 
     val dotScale = remember { Animatable(1f) }
@@ -71,9 +72,7 @@ fun BoardCanvas(
             .pointerInput(board.cols, board.rows) {
                 detectTapGestures { offset ->
                     layout?.let { l ->
-                        val col = ((offset.x - l.offsetX) / l.cellSize + 0.5f).toInt()
-                        val row = ((offset.y - l.offsetY) / l.cellSize + 0.5f).toInt()
-                        val coord = Coord(col, row)
+                        val coord = l.screenToCell(offset.x, offset.y)
                         if (board.isOnBoard(coord)) onCoordClick(coord)
                     }
                 }
@@ -81,10 +80,11 @@ fun BoardCanvas(
     ) {
         val cols = board.cols
         val rows = board.rows
-        val cs = minOf(size.width / (cols + 1), size.height / (rows + 1))
-        val ox = (size.width - cs * (cols - 1)) / 2f
-        val oy = (size.height - cs * (rows - 1)) / 2f
-        layout = Layout(cs, ox, oy)
+        val l = computeBoardLayout(size.width, size.height, cols, rows)
+        val cs = l.cellSize
+        val ox = l.offsetX
+        val oy = l.offsetY
+        layout = l
 
         // Surface gradient
         drawRect(
